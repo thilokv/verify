@@ -1,0 +1,2361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verify — AI Real Estate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   Verify — the record room at night.
+   A committed dark surface: an Indian land-records vault rendered as a
+   seed-round deck. Ground is blue-black rather than grey; the accent is
+   the ochre of an official seal, and verification green carries state.
+   Single-theme by intent — it paints its own ground and every colour, so
+   it holds whatever the host is doing.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --void:#08090C; --surface:#0F1116; --raised:#161922; --sunk:#12141A;
+  --line:#1E222C; --line2:#2A3040;
+  --ink:#ECEEF2; --soft:#98A0AE; --faint:#646C7C;
+  --seal:#D9A441; --seal-ink:#12140C; --seal-dim:#332912; --seal-glow:rgba(217,164,65,.16);
+  --ok:#43C08A; --ok-dim:#0E2A1E;
+  --bad:#E85D52; --bad-dim:#2C1512;
+  --warn:#E0A94A; --warn-dim:#2A2213;
+  --info:#7FA5F0; --info-dim:#141C2E;
+  --display:"Instrument Serif",Georgia,serif;
+  --body:"Manrope",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:3px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--void);color:var(--ink);
+  font:15px/1.6 var(--body);-webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility}
+::selection{background:var(--seal);color:var(--seal-ink)}
+:focus-visible{outline:2px solid var(--seal);outline-offset:2px;border-radius:2px}
+h1,h2,h3,p{margin:0}
+.mono,.tnum{font-variant-numeric:tabular-nums}
+
+.shell{max-width:1140px;margin:0 auto;padding:0 26px 90px;position:relative}
+/* one restrained glow behind the masthead — not a gradient hero */
+.shell::before{content:"";position:absolute;top:-140px;left:50%;translate:-50% 0;
+  width:min(760px,92vw);height:300px;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at center,var(--seal-glow),transparent 68%)}
+
+/* ─── masthead ─────────────────────────────────────────────── */
+.masthead{position:relative;z-index:1;display:flex;gap:17px;align-items:flex-start;
+  padding:34px 0 22px}
+.logo{flex:none;width:38px;height:38px;color:var(--seal);margin-top:5px}
+.masthead>div:nth-child(2){flex:1;min-width:0}
+.wordmark{font-family:var(--display);font-size:34px;font-weight:400;line-height:1.04;
+  letter-spacing:-.012em}
+.wordmark span{color:var(--seal)}
+.standfirst{margin-top:8px;color:var(--soft);font-size:14px;line-height:1.62;max-width:60ch}
+.stamp{flex:none;display:flex;flex-direction:column;gap:5px;align-items:flex-end;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);padding-top:6px}
+.stamp .s{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.stamp b{color:var(--soft);font-weight:500}
+.dot{width:5px;height:5px;border-radius:50%;flex:none;background:var(--faint)}
+.dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(67,192,138,.13)}
+.dot.off{background:var(--warn);box-shadow:0 0 0 3px rgba(224,169,74,.13)}
+
+.banner{position:relative;z-index:1;margin-bottom:20px;padding:12px 16px;
+  border-left:2px solid var(--warn);background:var(--warn-dim);color:var(--warn);
+  font-size:13px;line-height:1.58;border-radius:0 var(--r) var(--r) 0}
+
+/* ─── nav rail ─────────────────────────────────────────────── */
+.modes{position:sticky;top:0;z-index:20;display:flex;gap:2px;overflow-x:auto;
+  padding:2px 0 0;margin-bottom:30px;background:var(--void);
+  border-bottom:1px solid var(--line);scrollbar-width:none}
+.modes::-webkit-scrollbar{display:none}
+.mode-btn{flex:none;appearance:none;background:none;border:0;cursor:pointer;
+  font:500 13px/1 var(--body);color:var(--faint);padding:14px 15px 13px;
+  border-bottom:2px solid transparent;white-space:nowrap;transition:color .16s}
+.mode-btn:hover{color:var(--soft)}
+.mode-btn[aria-selected=true]{color:var(--ink);border-bottom-color:var(--seal)}
+.tab-ico{width:14px;height:14px;vertical-align:-2.5px;margin-right:6px;opacity:.6}
+.mode-btn[aria-selected=true] .tab-ico{opacity:1;color:var(--seal)}
+
+/* ─── the deck moment: every pane opens on a slide header ──── */
+.slide{position:relative;z-index:1;margin-bottom:26px;padding-bottom:22px;
+  border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.15em;
+  text-transform:uppercase;color:var(--seal)}
+.slide h2{font-family:var(--display);font-size:clamp(28px,4.4vw,42px);font-weight:400;
+  line-height:1.06;letter-spacing:-.016em;margin:11px 0 0;text-wrap:balance;max-width:19ch}
+.slide .thesis{margin-top:12px;color:var(--soft);font-size:15px;line-height:1.66;
+  max-width:64ch}
+.slide .thesis b{color:var(--ink);font-weight:600}
+
+/* ─── panels ───────────────────────────────────────────────── */
+.panel{position:relative;z-index:1;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:20px 22px;margin-bottom:15px}
+.panel-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:14px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+
+/* ─── stat blocks: the pitch-deck figures ──────────────────── */
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:18px 20px}
+.stat .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--faint)}
+.stat .v{font-family:var(--display);font-size:34px;font-weight:400;line-height:1.05;
+  letter-spacing:-.02em;margin:9px 0 5px;font-variant-numeric:tabular-nums}
+.stat .n{color:var(--soft);font-size:12.5px;line-height:1.55}
+.stat.ok .v{color:var(--ok)} .stat.bad .v{color:var(--bad)}
+.stat.seal .v{color:var(--seal)}
+
+/* ─── form controls ────────────────────────────────────────── */
+textarea,input[type=text],input[type=number],input[type=email],input[type=password],select{
+  width:100%;font:14px/1.55 var(--body);color:var(--ink);background:var(--raised);
+  border:1px solid var(--line2);border-radius:var(--r);padding:11px 13px;
+  transition:border-color .15s}
+textarea:focus,input:focus,select:focus{border-color:var(--seal);outline:none}
+textarea{resize:vertical;min-height:76px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--faint) 50%),linear-gradient(135deg,var(--faint) 50%,transparent 50%);
+  background-position:calc(100% - 17px) 50%,calc(100% - 12px) 50%;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px}
+::placeholder{color:var(--faint)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>span,.field>label{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.form-grid{display:grid;gap:13px;grid-template-columns:repeat(auto-fit,minmax(185px,1fr))}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.actions{display:flex;gap:11px;align-items:center;flex-wrap:wrap;margin-top:13px}
+
+.btn{appearance:none;cursor:pointer;font:600 13.5px/1 var(--body);
+  color:var(--seal-ink);background:var(--seal);border:1px solid var(--seal);
+  border-radius:var(--r);padding:11px 19px;transition:filter .15s,transform .08s}
+.btn:hover{filter:brightness(1.09)} .btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.42;cursor:not-allowed}
+.btn-quiet{appearance:none;cursor:pointer;font:500 13.5px/1 var(--body);
+  color:var(--soft);background:transparent;border:1px solid var(--line2);
+  border-radius:var(--r);padding:11px 17px;transition:color .15s,border-color .15s}
+.btn-quiet:hover{color:var(--ink);border-color:var(--seal)}
+.btn-quiet:disabled{opacity:.42;cursor:not-allowed}
+
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}
+.chip{appearance:none;cursor:pointer;font:500 12px/1 var(--body);color:var(--soft);
+  background:transparent;border:1px solid var(--line2);border-radius:100px;
+  padding:7px 13px;transition:color .15s,border-color .15s}
+.chip:hover{color:var(--seal);border-color:var(--seal)}
+.chip[aria-pressed=true],.chip.on{background:var(--seal);border-color:var(--seal);
+  color:var(--seal-ink)}
+
+.status{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.status.err{color:var(--bad)}
+.state{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.meta,.disc{color:var(--faint);font-size:12px;line-height:1.62}
+
+/* ─── listings ─────────────────────────────────────────────── */
+.listing-list{display:flex;flex-direction:column;gap:13px}
+.listing{position:relative;background:var(--surface);border:1px solid var(--line);
+  border-left:2px solid var(--line2);border-radius:var(--r);padding:17px 20px;
+  display:flex;gap:18px;flex-wrap:wrap;transition:border-color .16s}
+.listing:hover{border-left-color:var(--seal)}
+.listing.verified{border-left-color:var(--ok)}
+.count{font-family:var(--mono);font-size:10px;color:var(--faint);flex:none;padding-top:3px}
+.listing-main{flex:1;min-width:210px}
+.listing-title{font-family:var(--display);font-size:20px;font-weight:400;
+  letter-spacing:-.01em;line-height:1.2}
+.listing-where{color:var(--soft);font-size:13px;margin-top:3px}
+.listing-right{text-align:right;flex:none}
+.price{font-family:var(--display);font-size:22px;font-weight:400;
+  font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;padding:3px 8px;border-radius:2px;margin-top:7px;
+  border:1px solid currentColor}
+.badge.ok{color:var(--ok);background:var(--ok-dim)}
+.badge.warn{color:var(--warn);background:var(--warn-dim)}
+.badge.bad{color:var(--bad);background:var(--bad-dim)}
+.facts{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:9px;
+  display:flex;gap:9px;flex-wrap:wrap}
+.facts span::after{content:"·";margin-left:9px;color:var(--line2)}
+.facts span:last-child::after{content:""}
+.why{margin-top:10px;font-size:13.5px;line-height:1.6;color:var(--soft)}
+.concern{margin-top:7px;font-size:13px;color:var(--warn);line-height:1.55}
+
+/* ─── verdicts, issues, evidence ───────────────────────────── */
+.issue{padding:13px 15px;border-radius:var(--r);margin-bottom:9px;font-size:13.5px;
+  line-height:1.62;border-left:2px solid;background:var(--raised)}
+.issue code{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  margin-bottom:5px;opacity:.85}
+.issue.high,.issue.critical{border-color:var(--bad);color:var(--bad);background:var(--bad-dim)}
+.issue.medium{border-color:var(--warn);color:var(--warn);background:var(--warn-dim)}
+.issue.low,.issue.info{border-color:var(--info);color:var(--info);background:var(--info-dim)}
+.issue b{color:var(--ink)}
+
+.ladder{display:flex;gap:0;margin-bottom:16px;flex-wrap:wrap}
+.rung{flex:1;min-width:92px;padding:9px 7px;text-align:center;font-family:var(--mono);
+  font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);
+  background:var(--raised);border:1px solid var(--line);border-right:0}
+.rung:last-child{border-right:1px solid var(--line)}
+.rung.done{background:var(--ok-dim);color:var(--ok);border-color:var(--ok)}
+.rung.now{background:var(--seal);color:var(--seal-ink);border-color:var(--seal);font-weight:600}
+.rung.bad{background:var(--bad-dim);color:var(--bad);border-color:var(--bad)}
+.ev{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;
+  color:var(--faint);margin-top:7px;flex-wrap:wrap}
+.ev span{border:1px solid var(--line2);padding:2px 7px;border-radius:2px}
+.ev span.ok{border-color:var(--ok);color:var(--ok)}
+.ev span.warn{border-color:var(--warn);color:var(--warn)}
+
+/* ─── tables ───────────────────────────────────────────────── */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint);font-weight:400;padding:0 0 9px;
+  border-bottom:1px solid var(--line)}
+td{padding:11px 0;border-bottom:1px solid var(--line);vertical-align:top;
+  font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+td span{display:block;color:var(--faint);font-size:11.5px;margin-top:3px;line-height:1.5}
+.pill{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.09em;
+  padding:3px 8px;border-radius:2px;border:1px solid var(--line2);color:var(--soft)}
+.pill.ACTIVE,.pill.SENT{color:var(--ok);border-color:var(--ok);background:var(--ok-dim)}
+.pill.LEASED,.pill.CONVERTED{color:var(--seal);border-color:var(--seal);background:var(--seal-dim)}
+
+/* ─── chat logs (Jarvis / Ultron) ──────────────────────────── */
+.log{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:13px;
+  padding:15px;background:var(--sunk);border:1px solid var(--line);
+  border-radius:var(--r);margin-bottom:13px}
+.msg .who{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--seal);margin-bottom:5px}
+.msg.me .who{color:var(--faint)}
+.bubble{font-size:14px;line-height:1.62;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.me .bubble{background:var(--raised);border:1px solid var(--line2);padding:11px 13px;
+  border-radius:var(--r)}
+.receipt{font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--soft);
+  white-space:pre-wrap;background:var(--raised);border-left:2px solid var(--seal);
+  padding:11px 13px;border-radius:0 var(--r) var(--r) 0}
+
+/* ─── docs, uploads ────────────────────────────────────────── */
+.doclist{display:flex;flex-direction:column;gap:10px}
+.doc{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;
+  background:var(--raised);border:1px solid var(--line);border-radius:var(--r)}
+.doc-main{flex:1;min-width:0}
+.doc-label{font-weight:600;font-size:13.5px}
+.doc-why{color:var(--faint);font-size:12px;margin-top:3px;line-height:1.55}
+.empty{color:var(--faint);font-size:13.5px;font-style:italic}
+.map{font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.75;
+  white-space:pre-wrap}
+
+/* ─── build plan / phases ──────────────────────────────────── */
+.phase{display:grid;grid-template-columns:30px 1fr;gap:14px;padding:15px 0;
+  border-top:1px solid var(--line)}
+.phase:first-of-type{border-top:0}
+.phase-no{font-family:var(--mono);font-size:11px;width:26px;height:26px;display:flex;
+  align-items:center;justify-content:center;border:1px solid var(--line2);
+  color:var(--faint);border-radius:50%}
+.phase.done .phase-no{background:var(--ok-dim);color:var(--ok);border-color:var(--ok)}
+.phase.pending .phase-no{background:var(--warn-dim);color:var(--warn);border-color:var(--warn)}
+.phase-name{font-weight:600;margin:2px 0 4px;font-size:15px}
+.phase-what{color:var(--soft);font-size:13.5px;margin:0 0 7px;line-height:1.6}
+.phase-ev{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.phase-ev b{color:var(--ink);font-weight:500}
+.callout{padding:14px 16px;border-left:2px solid var(--warn);background:var(--warn-dim);
+  color:var(--warn);font-size:13.5px;line-height:1.62;margin-bottom:16px;
+  border-radius:0 var(--r) var(--r) 0}
+.callout b{display:block;margin-bottom:4px;font-size:9.5px;font-family:var(--mono);
+  letter-spacing:.12em;text-transform:uppercase}
+.limit{padding:12px 0;border-top:1px solid var(--line);font-size:13.5px}
+.limit:first-of-type{border-top:0}
+.limit b{display:block;font-weight:600;margin-bottom:3px}
+.limit span{color:var(--soft);line-height:1.6}
+
+.switch{display:inline-flex;gap:0;margin-bottom:16px;border:1px solid var(--line2);
+  border-radius:var(--r);overflow:hidden}
+.switch button{appearance:none;cursor:pointer;font:500 12.5px/1 var(--body);
+  background:transparent;color:var(--faint);border:0;padding:10px 17px;transition:.15s}
+.switch button[aria-pressed=true]{background:var(--seal);color:var(--seal-ink)}
+
+.colophon{margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
+  color:var(--faint);font-size:12.5px;line-height:1.72}
+.colophon b{color:var(--soft)}
+
+/* ─── Inky ─────────────────────────────────────────────────── */
+#inky{position:fixed;bottom:22px;right:22px;z-index:60;width:54px;height:54px;
+  border-radius:50%;background:var(--seal);border:1px solid var(--seal);
+  color:var(--seal-ink);cursor:pointer;display:grid;place-items:center;
+  box-shadow:0 8px 26px rgba(0,0,0,.5);transition:transform .18s}
+#inky:hover{transform:scale(1.07)}
+#inky.urgent{background:var(--bad);border-color:var(--bad);color:#fff}
+#inky svg{width:28px;height:28px}
+#inky .badge-dot{position:absolute;top:-3px;right:-3px;min-width:19px;height:19px;
+  border-radius:50%;background:var(--ok);color:var(--void);font-family:var(--mono);
+  font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 5px;
+  border:0;margin:0}
+.tent path{transform-origin:top center;animation:sway 2.6s ease-in-out infinite}
+.tent path:nth-child(2){animation-delay:.2s}
+.tent path:nth-child(3){animation-delay:.4s}
+.tent path:nth-child(4){animation-delay:.6s}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+#inky-panel{position:fixed;bottom:88px;right:22px;z-index:60;width:min(23rem,calc(100vw - 44px));
+  max-height:70vh;display:flex;flex-direction:column;background:var(--surface);
+  border:1px solid var(--line2);border-radius:var(--r);overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6)}
+#inky-panel header{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 16px;border-bottom:1px solid var(--line)}
+#inky-panel .body{flex:1;overflow-y:auto;padding:14px 16px}
+#inky-panel footer{padding:14px 16px;border-top:1px solid var(--line)}
+.note{border-left:2px solid var(--seal);padding-left:11px;margin-bottom:11px}
+.note.urgent{border-color:var(--bad)}
+.note b{display:block;font-size:13.5px;font-weight:600}
+.note p{color:var(--soft);font-size:13px;margin-top:2px;line-height:1.55}
+
+
+/* ─── classes the renderers emit ───────────────────────────── */
+.listing{padding-left:0}
+.stripe{position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--line2);
+  border-radius:var(--r) 0 0 var(--r)}
+.stripe.ok{background:var(--ok)} .stripe.warn{background:var(--warn)}
+.stripe.bad{background:var(--bad)}
+.rank{font-family:var(--mono);font-size:10px;color:var(--faint);flex:none;
+  padding:5px 0 0 12px}
+.listing.top{border-color:var(--line2)}
+.specs{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:9px;
+  display:flex;gap:0;flex-wrap:wrap}
+.specs span:not(:last-child)::after{content:"·";margin:0 8px;color:var(--line2)}
+.safety{margin-top:12px}
+.safety-btn{appearance:none;cursor:pointer;font:500 12px/1 var(--body);color:var(--soft);
+  background:transparent;border:1px solid var(--line2);border-radius:var(--r);
+  padding:8px 13px;transition:color .15s,border-color .15s}
+.safety-btn:hover{color:var(--seal);border-color:var(--seal)}
+
+.results-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin:26px 0 4px}
+.results-head h2,.head{font-family:var(--display);font-size:23px;font-weight:400;
+  letter-spacing:-.012em}
+.sub{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+.notice{padding:12px 15px;border-left:2px solid var(--info);background:var(--info-dim);
+  color:var(--info);font-size:13px;line-height:1.58;margin:12px 0;
+  border-radius:0 var(--r) var(--r) 0}
+.rule{height:1px;background:var(--line);border:0;margin:22px 0}
+.secnote{color:var(--faint);font-size:12.5px;line-height:1.65}
+.secnote b{color:var(--soft)}
+
+/* verification / safety panels */
+.vpanel{background:var(--raised);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;margin-bottom:12px}
+.vstat{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:9px}
+.verdict{font-family:var(--mono);font-size:13px;letter-spacing:.06em;text-transform:uppercase;
+  padding:11px 14px;border-left:2px solid;border-radius:0 var(--r) var(--r) 0;margin-bottom:13px}
+.verdict.ok{color:var(--ok);background:var(--ok-dim);border-color:var(--ok)}
+.verdict.warn{color:var(--warn);background:var(--warn-dim);border-color:var(--warn)}
+.verdict.bad{color:var(--bad);background:var(--bad-dim);border-color:var(--bad)}
+.finding{padding:12px 0;border-top:1px solid var(--line);font-size:13.5px;line-height:1.6}
+.finding:first-of-type{border-top:0}
+.finding b{display:block;font-weight:600;margin-bottom:3px}
+.finding span{color:var(--soft)}
+
+/* fraud-screen questions */
+.q{padding:15px 0;border-top:1px solid var(--line)}
+.q:first-of-type{border-top:0}
+.q-text{font-size:14px;line-height:1.6;font-weight:500}
+.q-why{color:var(--faint);font-size:12.5px;line-height:1.6;margin-top:5px}
+.yn{display:flex;gap:8px;margin-top:10px}
+.yn button{appearance:none;cursor:pointer;font:500 12.5px/1 var(--body);color:var(--soft);
+  background:transparent;border:1px solid var(--line2);border-radius:var(--r);padding:9px 17px;
+  transition:.15s}
+.yn button:hover{color:var(--ink);border-color:var(--seal)}
+.yn button[aria-pressed=true]{background:var(--seal);border-color:var(--seal);
+  color:var(--seal-ink)}
+.warning,.swarn{padding:12px 15px;border-left:2px solid var(--bad);background:var(--bad-dim);
+  color:var(--bad);font-size:13px;line-height:1.6;margin-top:11px;
+  border-radius:0 var(--r) var(--r) 0}
+.stance{font-size:13.5px;line-height:1.65;color:var(--soft);margin-top:11px}
+.stance b{color:var(--ink)}
+.nb,.nt{font-size:12.5px;line-height:1.6;color:var(--faint);margin-top:9px}
+.privacy{font-size:12px;line-height:1.6;color:var(--faint);margin-top:11px;
+  padding-left:11px;border-left:1px solid var(--line2)}
+
+/* uploads */
+.photo-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.preview{width:64px;height:64px;object-fit:cover;border-radius:var(--r);
+  border:1px solid var(--line2)}
+.doc-up{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+
+/* money + inky helpers */
+.kicker{margin:15px 0 0;padding:12px 14px;background:var(--raised);
+  border-left:2px solid var(--seal);font-size:13px;line-height:1.62;
+  border-radius:0 var(--r) var(--r) 0}
+.kicker b{color:var(--ink)}
+.tenant-brief{appearance:none;cursor:pointer;font:500 12.5px/1 var(--body);color:var(--soft);
+  background:transparent;border:1px solid var(--line2);border-radius:var(--r);
+  padding:10px 15px;transition:.15s}
+.tenant-brief:hover{color:var(--seal);border-color:var(--seal)}
+.inky-empty{color:var(--faint);font-size:13px;line-height:1.6}
+
+/* compare: columns need room, and the header is a name not a label */
+#cmp-out table{min-width:640px}
+#cmp-out th{vertical-align:top;padding:0 16px 11px 0;text-transform:none;letter-spacing:0;
+  font-family:var(--body);font-size:13px;font-weight:600;color:var(--ink);line-height:1.35;
+  min-width:132px;max-width:190px}
+#cmp-out th:first-child{min-width:112px;width:112px}
+#cmp-out td{padding:11px 16px 11px 0;white-space:nowrap}
+#cmp-out td:first-child{white-space:normal;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.06em;text-transform:uppercase}
+#cmp-out td span{white-space:normal}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+}
+@media (max-width:640px){
+  .shell{padding:0 17px 80px}
+  .masthead{flex-wrap:wrap;padding-top:26px}
+  .stamp{align-items:flex-start;width:100%;flex-direction:row;gap:13px;flex-wrap:wrap}
+  .wordmark{font-size:27px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <svg class="logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2.9L20.6 9.55V19.7a1.1 1.1 0 0 1-1.1 1.1H4.5A1.1 1.1 0 0 1 3.4 19.7V9.55Z"/>
+      <path fill="currentColor" stroke="none" d="M12.78 14.3L12 8.8L11.22 14.3ZM12.63 14.76L14.17 11.31L11.37 13.84ZM12.24 15.04L17.23 12.6L11.76 13.56ZM11.76 15.04L15.52 15.44L12.24 13.56ZM11.37 14.76L15.23 18.75L12.63 13.84ZM11.22 14.3L12 18L12.78 14.3ZM11.37 13.84L8.77 18.75L12.63 14.76ZM11.76 13.56L8.48 15.44L12.24 15.04ZM12.24 13.56L6.77 12.6L11.76 15.04ZM12.63 13.84L9.83 11.31L11.37 14.76Z"/>
+    </svg>
+    <div>
+      <h1 class="wordmark">Verify <span>Real Estate</span></h1>
+      <p class="standfirst">Every property India sells is sold twice — once on price, once on
+        whether the title survives scrutiny. We check the second one first.</p>
+    </div>
+    <div class="stamp" id="stamp"></div>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="modes" role="tablist" aria-label="Sections">
+    <button class="mode-btn" role="tab" aria-selected="true"  data-pane="overview">Overview</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="buyer">Find a home</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="plan">Match a plan</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="seller">List with Jarvis</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="title">Title check</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="team">Team</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="playbook">Playbook</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="revenue">Revenue</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="rentals">
+      <svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V20h14V9.8"/>
+        <path d="M9.5 20v-4.5h5V20"/><circle cx="15.6" cy="12.2" r="1"/>
+      </svg>Rentals</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="money">
+      <svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/>
+      </svg>What it costs</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="compare">
+      <svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h6M4 12h6M4 18h6M15 6h5M15 12h5M15 18h5"/>
+      </svg>Compare</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="steps">
+      <svg class="tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 20V4M4 8h7l-1.5 2L11 12H4"/><circle cx="18" cy="18" r="2.5"/>
+      </svg>Buying steps</button>
+    <button class="mode-btn" role="tab" aria-selected="false" data-pane="postsale">Post-Sale</button>
+  </div>
+
+  <!-- ============ OVERVIEW (the deck) ============ -->
+  <section id="pane-overview">
+    <div class="slide">
+      <p class="eyebrow">Verify · Bengaluru · seed</p>
+      <h2>India buys property on trust it cannot verify</h2>
+      <p class="thesis">Every listing here arrives with its title already examined — khata class,
+        RERA registration, encumbrance history — and an agent that keeps watching after you close
+        the tab. <b>The verification is the product;</b> the matching is how you find it.</p>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:15px">
+      <div class="stat ok"><p class="k">Past the gate</p><p class="v" id="ov-verified">—</p>
+        <p class="n">of <span id="ov-total">—</span> listings. The rest are invisible to buyers
+          until an advocate signs.</p></div>
+      <div class="stat seal"><p class="k">Agent</p><p class="v" id="ov-watches">—</p>
+        <p class="n">watches running in a separate process, with nobody at a keyboard.</p></div>
+      <div class="stat"><p class="k">Verified by test</p><p class="v">251</p>
+        <p class="n">Every bug fixed carries a test that fails against the old code.</p></div>
+    </div>
+
+    <div class="grid g2">
+      <div class="panel" style="margin:0">
+        <p class="panel-label">The finding buyers never get told</p>
+        <p style="font-family:var(--display);font-size:29px;line-height:1.1;letter-spacing:-.02em">
+          ₹1.24 Cr <span style="color:var(--faint)">→</span> ₹1.32 Cr</p>
+        <p style="color:var(--soft);font-size:13.5px;line-height:1.62;margin-top:9px">
+          ₹8.41 L more than the quoted price — stamp duty, cess, surcharge, registration and the
+          advocate. Payable at the sub-registrar's office, in cash, on top of the loan.
+          <b style="color:var(--ink)">No bank lends against stamp duty.</b></p>
+        <div class="ev"><span class="warn">6.8% on top</span><span>A-Khata · Whitefield</span></div>
+      </div>
+
+      <div class="panel" style="margin:0;border-left:2px solid var(--bad)">
+        <p class="panel-label" style="color:var(--bad)">And the one that stops a sale dead</p>
+        <p style="font-family:var(--display);font-size:29px;line-height:1.1;color:var(--bad)">
+          B-Khata · no lender</p>
+        <p style="color:var(--soft);font-size:13.5px;line-height:1.62;margin-top:9px">
+          Not a worse rate — a refusal. A ₹68 L flat needs <b style="color:var(--ink)">₹72.71 L in
+          cash</b>. Three parts of the platform agree from one khata letter: lending refuses it,
+          valuation discounts it 18%, and the gate holds it back until an advocate signs.</p>
+        <div class="ev"><span class="warn">−18% valuation</span><span>₹0 loan</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="panel-label">What the agent watches, unattended</p>
+      <div class="phase done"><div class="phase-no">◆</div><div>
+        <p class="phase-name">A title check that fails after you liked the listing</p>
+        <p class="phase-what">The message only a platform that re-checks titles can send, delivered
+          at the exact moment money moves. Everything else here is a saved search.</p></div></div>
+      <div class="phase done"><div class="phase-no">◆</div><div>
+        <p class="phase-name">A letting asking above the statutory deposit cap</p>
+        <p class="phase-what">Ten months was the Bengaluru norm; the Model Tenancy Act 2021 caps it
+          at two.</p></div></div>
+      <div class="phase pending"><div class="phase-no">◇</div><div>
+        <p class="phase-name">New verified matches, price drops, idle leads</p>
+        <p class="phase-what">The ordinary three. Useful, and copyable in a week.</p></div></div>
+      <p class="phase-ev" style="margin-top:14px">Permission fails closed — no consent row, no send ·
+        quiet hours 21:00–08:00 IST · STOP honoured before anything else reads the message</p>
+    </div>
+
+    <div id="ov-plan"></div>
+
+    <div class="panel">
+      <p class="panel-label">What this is not</p>
+      <div class="limit"><b>No money moves</b><span>Settling a fee marks a ledger row PAID. There is
+        no payment gateway behind it.</span></div>
+      <div class="limit"><b>Document checks triage, they do not clear title</b><span>Machine checks
+        narrow what an advocate looks at. Only the advocate's opinion moves a listing past the
+        gate.</span></div>
+      <div class="limit"><b>Email is gated but unbuilt</b><span>The channel exists and is
+        permission-checked; there is no SMTP behind it.</span></div>
+      <div class="limit"><b>Rate limits are per process</b><span>Four workers means four times the
+        written limit. Move the counters to Redis before scaling out.</span></div>
+    </div>
+  </section>
+
+  <!-- ============ BUYER ============ -->
+  <section id="pane-buyer" hidden>
+    <div class="slide">
+      <p class="eyebrow">01 — Demand</p>
+      <h2>Say it the way you'd say it to a friend</h2>
+      <p class="thesis">A brief in plain language becomes hard constraints plus a ranked shortlist. <b>Unverified stock never reaches a buyer</b> — there is no route into search that skips the gate.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">What are you looking for?</p>
+      <textarea id="brief">3BHK flat in Whitefield under 1.3 crore, ready to move, clean title</textarea>
+      <div class="chips" id="brief-chips"></div>
+      <div class="actions">
+        <button class="btn" id="find">Find my matches</button>
+        <p class="status" id="find-status"></p>
+      </div>
+    </div>
+    <div class="results-head">
+      <h2 id="results-title">Verified inventory</h2>
+      <span class="count" id="results-count"></span>
+    </div>
+    <div id="buyer-notice"></div>
+    <p class="meta" id="parsed"></p>
+    <ul class="listing-list" id="listings"></ul>
+  </section>
+
+  <!-- ============ PLAN ============ -->
+  <section id="pane-plan" hidden>
+    <div class="slide">
+      <p class="eyebrow">02 — Intake</p>
+      <h2>A floor plan is a brief too</h2>
+      <p class="thesis">Upload a plan and it is read for configuration, carpet area and orientation, then matched like any other brief.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Upload the plan of the home you want</p>
+      <input type="file" id="plan-file" accept="image/png,image/jpeg,image/webp,image/gif">
+      <div class="preview" id="plan-preview"></div>
+      <p class="panel-label" style="margin:16px 0 11px">Anything to add?</p>
+      <textarea id="plan-note" style="min-height:60px" placeholder="e.g. must be in east Bengaluru, budget 1.5 crore"></textarea>
+      <div class="actions">
+        <button class="btn" id="plan-go">Read plan &amp; match</button>
+        <p class="status" id="plan-status"></p>
+      </div>
+    </div>
+    <div id="plan-out"></div>
+  </section>
+
+  <!-- ============ SELLER ============ -->
+  <section id="pane-seller" hidden>
+    <div class="slide">
+      <p class="eyebrow">03 — Supply</p>
+      <h2>Jarvis takes the listing</h2>
+      <p class="thesis">An explicit state machine, not a free LLM loop. A letting is a data-collection task, and a state machine collects reliably, cheaply and auditably. <b>Everything it lists enters unverified</b>, like every other route in.</p>
+    </div>
+    <div class="switch" role="group" aria-label="Listing method">
+      <button id="sw-jarvis" aria-pressed="true">Talk to Jarvis</button>
+      <button id="sw-form" aria-pressed="false">Quick form</button>
+    </div>
+
+    <div class="panel" id="quick-form" hidden>
+      <p class="panel-label">List a property</p>
+      <div class="form-grid">
+        <div class="field"><label for="f-title">Property</label>
+          <input type="text" id="f-title" placeholder="3BHK apartment, Prestige Lakeside"></div>
+        <div class="field"><label for="f-locality">Locality</label>
+          <input type="text" id="f-locality" placeholder="Whitefield"></div>
+        <div class="field"><label for="f-type">Type</label>
+          <select id="f-type">
+            <option>Flat</option><option>Villa</option><option>Plot</option>
+            <option>Commercial</option><option>Agricultural</option>
+          </select></div>
+        <div class="field"><label for="f-config">Configuration</label>
+          <input type="text" id="f-config" placeholder="3BHK"></div>
+        <div class="field"><label for="f-price">Asking price (₹ lakh)</label>
+          <input type="text" id="f-price" placeholder="128"></div>
+        <div class="field"><label for="f-area">Area (sq ft)</label>
+          <input type="text" id="f-area" placeholder="1580"></div>
+        <div class="field"><label for="f-khata">Khata</label>
+          <select id="f-khata">
+            <option value="">Not stated</option><option>A-Khata</option><option>B-Khata</option>
+          </select></div>
+        <div class="field"><label for="f-possession">Possession</label>
+          <select id="f-possession">
+            <option>Ready to move</option><option>Under construction</option>
+          </select></div>
+        <div class="field"><label for="f-rera">RERA number</label>
+          <input type="text" id="f-rera" placeholder="PRM/KA/RERA/..."></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="f-submit">Submit listing</button>
+        <p class="status" id="f-status"></p>
+      </div>
+      <p class="disc">Listings enter as verification pending and are invisible to
+        buyers until the documents are submitted and an advocate signs the title
+        opinion.</p>
+    </div>
+
+    <div class="panel" id="jarvis-panel">
+      <p class="panel-label">Jarvis — seller intake</p>
+      <div class="log" id="jarvis-log"></div>
+      <div class="row">
+        <input type="text" id="jarvis-in" placeholder="Tell Jarvis about your property…" autocomplete="off">
+        <button class="btn" id="jarvis-go">Send</button>
+        <button class="btn-quiet" id="jarvis-reset">Start over</button>
+      </div>
+      <p class="state" id="jarvis-state" style="margin-top:10px"></p>
+      <div class="row" style="margin-top:12px">
+        <input type="file" id="photo-file" accept="image/*" multiple style="display:none">
+        <button class="btn-quiet" id="photo-btn" disabled>Upload property photos</button>
+        <span class="state" id="photo-state"></span>
+      </div>
+      <div class="photo-row" id="photo-row"></div>
+    </div>
+    <div id="verify-out"></div>
+  </section>
+
+  <!-- ============ TITLE ============ -->
+  <section id="pane-title" hidden>
+    <div class="slide">
+      <p class="eyebrow">04 — The moat</p>
+      <h2>Where the money is actually lost</h2>
+      <p class="thesis">Encumbrance, litigation, survey mismatch, owner mismatch — plus duplicate documents across properties and PDFs edited after creation. <b>This triages; only an advocate's opinion clears a title.</b></p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Paste document text — EC, sale deed, khata or RERA certificate</p>
+      <textarea id="doc" style="min-height:132px">ENCUMBRANCE CERTIFICATE Form 15. Survey No: 42/1. A mortgage was created in favour of the bank over the schedule property on 12-03-2019.</textarea>
+      <div class="chips" id="doc-chips"></div>
+      <div class="actions">
+        <input type="text" id="owner" placeholder="Expected owner (optional)" style="max-width:250px">
+        <button class="btn" id="doc-go">Run checks</button>
+      </div>
+    </div>
+    <div id="doc-out"></div>
+  </section>
+
+  <!-- ============ TEAM ============ -->
+  <section id="pane-team" hidden>
+    <div class="slide">
+      <p class="eyebrow">05 — Operations</p>
+      <h2>The desk behind the platform</h2>
+      <p class="thesis">Leads, site visits and the staff key. Buyer contact data is never public.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Staff key</p>
+      <div class="row">
+        <input type="text" id="key" placeholder="staff_… (printed in the server log at boot)" autocomplete="off">
+        <button class="btn" id="team-go">Load</button>
+      </div>
+      <p class="status" id="team-status" style="margin-top:11px">Buyer contact data is staff-only.</p>
+    </div>
+    <div id="team-out"></div>
+  </section>
+
+  <!-- ============ PLAYBOOK ============ -->
+  <section id="pane-playbook" hidden>
+    <div class="slide">
+      <p class="eyebrow">06 — Execution</p>
+      <h2>The plan, measured against the database</h2>
+      <p class="thesis">Build phases read from what is actually stored, so this panel can and does contradict the person reading it.</p>
+    </div>
+    <div id="pb-plan"></div>
+    <div class="panel">
+      <p class="panel-label">Go-to-Market Strategy (Playbook §11)</p>
+      <div class="row">
+        <input type="text" id="pb-city" placeholder="City (e.g., Bengaluru)" style="flex:1">
+        <input type="text" id="pb-state" placeholder="State" style="flex:1; margin-left:8px">
+        <button class="btn" id="pb-init">Set beachhead</button>
+      </div>
+      <p class="status" id="pb-status" style="margin-top:11px"></p>
+    </div>
+    <div id="pb-progress"></div>
+    <div class="panel" style="margin-top:16px">
+      <p class="panel-label">Log Validation Interview</p>
+      <div class="row" style="flex-direction:column; gap:8px">
+        <select id="pb-type" style="padding:8px">
+          <option value="seller">Seller</option>
+          <option value="buyer">Buyer</option>
+          <option value="competitor_user">Competitor platform user</option>
+        </select>
+        <input type="text" id="pb-name" placeholder="Name" style="padding:8px">
+        <input type="text" id="pb-phone" placeholder="Phone" style="padding:8px">
+        <button class="btn" id="pb-log" style="align-self:flex-start">Log interview</button>
+      </div>
+      <p class="status" id="pb-log-status" style="margin-top:11px"></p>
+    </div>
+  </section>
+
+  <!-- ============ REVENUE (Premier Agent Model) ============ -->
+  <section id="pane-revenue" hidden>
+    <div class="slide">
+      <p class="eyebrow">07 — Business model</p>
+      <h2>Charge the professionals, never the buyer</h2>
+      <p class="thesis">Agents and brokers pay for qualified leads. <b>An agent is never billed for a locality they do not cover</b> — there is deliberately no fallback to \u201cany active agent\u201d.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Premier Agent Model (Zillow §4.1)</p>
+      <p style="font-size:13px; line-height:1.6; color:#666">
+        Charge real estate agents and brokers for qualified buyer leads, not transaction fees from buyers or sellers.
+      </p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Register Agent</p>
+      <div class="row" style="flex-direction:column; gap:8px">
+        <input type="text" id="rev-name" placeholder="Agent name" style="padding:8px">
+        <input type="text" id="rev-phone" placeholder="Phone" style="padding:8px">
+        <input type="email" id="rev-email" placeholder="Email" style="padding:8px">
+        <input type="text" id="rev-company" placeholder="Company" style="padding:8px">
+        <select id="rev-spec" style="padding:8px">
+          <option value="residential">Residential (flat, villa, plot, house)</option>
+          <option value="commercial">Commercial (office, retail)</option>
+          <option value="farmland">Farmland (agricultural)</option>
+          <option value="all">All property types</option>
+        </select>
+        <input type="text" id="rev-areas" placeholder="Service areas, comma separated (e.g. Whitefield, Sarjapur)" style="padding:8px">
+        <input type="number" id="rev-fee" placeholder="Lead fee (₹)" value="500" style="padding:8px">
+        <button class="btn" id="rev-register" style="align-self:flex-start">Register agent</button>
+      </div>
+      <p class="status" id="rev-status" style="margin-top:11px"></p>
+      <p class="meta" style="margin-top:8px">An agent only receives leads in the localities listed above —
+        leave it empty and they can never be sent one.</p>
+    </div>
+    <div id="rev-dashboard"></div>
+  </section>
+
+  <!-- ============ WHAT IT COSTS (valuation · duties · lending · yield) ==== -->
+  <section id="pane-money" hidden>
+    <div class="slide">
+      <p class="eyebrow">09 — The real number</p>
+      <h2>The price is not the price</h2>
+      <p class="thesis">Stamp duty, cess, surcharge, registration and GST add 6\u201312% at the sub-registrar's office — the one moment a buyer cannot postpone. And <b>B-Khata is not a discount, it is a refusal</b>: most banks will not lend at all.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">What this property actually costs</p>
+      <p style="font-size:13.5px;line-height:1.6;color:var(--soft);margin:0 0 14px">
+        The listed price is not the price. Stamp duty, cess and registration add
+        6–12% on top, payable at the sub-registrar's office — the one moment you
+        cannot postpone. And a B-Khata property is not merely cheaper: most banks
+        will not lend against it at all.</p>
+      <div class="row" style="flex-wrap:wrap;gap:10px">
+        <label class="field" style="flex:1;min-width:190px">
+          <span>Property</span>
+          <select id="money-prop"></select>
+        </label>
+        <label class="field" style="min-width:150px">
+          <span>Your monthly income</span>
+          <input type="number" id="money-income" value="200000" min="0" step="10000">
+        </label>
+        <label class="field" style="min-width:110px">
+          <span>Existing EMI</span>
+          <input type="number" id="money-emi" value="0" min="0" step="1000">
+        </label>
+        <label class="field" style="min-width:90px">
+          <span>Rate %</span>
+          <input type="number" id="money-rate" value="8.6" min="1" max="30" step="0.1">
+        </label>
+        <label class="field" style="min-width:90px">
+          <span>Years</span>
+          <input type="number" id="money-years" value="20" min="1" max="35">
+        </label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="btn" id="money-go">Work it out</button>
+        <p class="status" id="money-status"></p>
+      </div>
+    </div>
+    <div id="money-out"></div>
+    <div class="panel">
+      <p class="panel-label">Virtual staging &amp; renovation</p>
+      <p style="font-size:13.5px;line-height:1.62;color:var(--soft);margin:0 0 14px">
+        What the work costs in Bengaluru, and what actually comes back at resale.
+        Most renovation advice implies the work pays for itself; almost none of it does.</p>
+      <div class="form-grid">
+        <label class="field"><span>Room</span><select id="st-room"></select></label>
+        <label class="field"><span>Style</span><select id="st-style"></select></label>
+        <label class="field"><span>Area (sq ft)</span>
+          <input type="number" id="st-area" value="1500" min="1" step="50"></label>
+        <label class="field"><span>Grade</span><select id="st-grade">
+          <option value="budget">budget</option>
+          <option value="standard" selected>standard</option>
+          <option value="premium">premium</option></select></label>
+      </div>
+      <div class="chips" id="st-scopes"></div>
+      <div class="actions">
+        <button class="btn" id="st-go">Cost the work</button>
+        <button class="btn-quiet" id="st-stage">Stage this room</button>
+        <p class="status" id="st-status"></p>
+      </div>
+    </div>
+    <div id="st-out"></div>
+  </section>
+
+  <!-- ============ RENTALS (Ultron) ============ -->
+  <section id="pane-rentals" hidden>
+    <div class="slide">
+      <p class="eyebrow">08 — Rentals</p>
+      <h2>Ultron argues with the landlord</h2>
+      <p class="thesis">Any property that is let, sold through here or not. It checks the terms against Karnataka law while the landlord types — a deposit above the statutory cap, a lease long enough to need registration.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Ultron — rental intake</p>
+      <p style="font-size:13.5px;line-height:1.6;color:var(--soft);margin:0 0 14px">
+        Any property that is let, whether or not it was ever sold here. Ultron
+        collects the letting and checks the terms against Karnataka law while
+        you type — deposits above the statutory cap and leases long enough to
+        need registration are flagged before a tenant ever sees them.</p>
+      <div class="log" id="ultron-log"></div>
+      <div class="row">
+        <input type="text" id="ultron-in" placeholder="Tell Ultron about the property you're letting…" autocomplete="off">
+        <button class="btn" id="ultron-go">Send</button>
+        <button class="btn-quiet" id="ultron-reset">Start over</button>
+      </div>
+      <p class="state" id="ultron-state" style="margin-top:10px"></p>
+    </div>
+    <div id="ultron-flags"></div>
+    <div id="ultron-list"></div>
+
+    <div class="panel">
+      <p class="panel-label">Renting? Check what you were told</p>
+      <p style="font-size:13.5px;line-height:1.6;color:var(--soft);margin:0 0 11px">
+        Paste what the landlord or broker sent you. This looks for the lines
+        that usually come before a deposit disappears.</p>
+      <textarea id="tenant-msg" style="min-height:72px"
+        placeholder="e.g. Owner is abroad, someone else is coming at 5. Pay to block today, cash only."></textarea>
+      <div class="actions">
+        <button class="btn" id="tenant-scan-go">Check this message</button>
+        <button class="btn-quiet" id="tenant-rules-go">Deposit rules &amp; your rights</button>
+      </div>
+      <div id="tenant-scan-out"></div>
+    </div>
+    <div id="tenant-safety-out"></div>
+  </section>
+
+  <!-- ============ COMPARE ============ -->
+  <section id="pane-compare" hidden>
+    <div class="slide">
+      <p class="eyebrow">11 — The decision</p>
+      <h2>The cheapest listing is rarely the cheapest purchase</h2>
+      <p class="thesis">Two flats at the same asking price can differ by lakhs once
+        duties land, and one of them may be <b>unfundable outright</b>. This does not
+        rank them — ranking hides the trade, and the trade is the decision.</p>
+    </div>
+
+    <div class="panel">
+      <p class="panel-label">Pick two to four</p>
+      <div id="cmp-picker" class="chips"></div>
+      <div class="row" style="margin-top:14px">
+        <label class="field" style="max-width:200px">
+          <span>Your monthly income</span>
+          <input type="number" id="cmp-income" value="200000" min="0" step="10000">
+        </label>
+      </div>
+      <div class="actions">
+        <button class="btn" id="cmp-go">Compare</button>
+        <p class="status" id="cmp-status"></p>
+      </div>
+    </div>
+    <div id="cmp-out"></div>
+  </section>
+
+  <!-- ============ CONVEYANCE ============ -->
+  <section id="pane-steps" hidden>
+    <div class="slide">
+      <p class="eyebrow">12 — The sequence</p>
+      <h2>Money follows the check, never the other way round</h2>
+      <p class="thesis">A buyer is told the price and the EMI, almost never the
+        <b>order</b> — which document comes before which payment. So money moves at
+        the token stage, before the checks that would have justified it.</p>
+    </div>
+
+    <div class="panel">
+      <p class="panel-label">Work the sequence against a property</p>
+      <div class="row">
+        <label class="field" style="flex:1;min-width:220px">
+          <span>Property</span><select id="steps-prop"></select>
+        </label>
+        <button class="btn" id="steps-go" style="align-self:flex-end">Show me the order</button>
+      </div>
+      <p class="status" id="steps-status" style="margin-top:11px"></p>
+    </div>
+    <div id="steps-out"></div>
+  </section>
+
+  <!-- ============ POST-SALE (Phase 4) ============ -->
+  <section id="pane-postsale" hidden>
+    <div class="slide">
+      <p class="eyebrow">10 — Retention</p>
+      <h2>The relationship outlives the sale</h2>
+      <p class="thesis">Rental tenant matching and farmland seasonal guidance — the India-specific reasons a buyer comes back after the transaction closes.</p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Post-Sale Management (Phase 4)</p>
+      <p style="font-size:13px; line-height:1.6; color:#666">
+        Rental tenant matching and farmland seasonal guidance — India-specific features for extending buyer relationships.
+      </p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Register Rental Property</p>
+      <div class="row" style="flex-direction:column; gap:8px">
+        <input type="number" id="ps-prop-id" placeholder="Property ID" style="padding:8px">
+        <input type="number" id="ps-rent" placeholder="Monthly rent (₹)" style="padding:8px">
+        <input type="text" id="ps-furnish" placeholder="Furnishing (Furnished/Unfurnished)" value="Unfurnished" style="padding:8px">
+        <button class="btn" id="ps-reg-rent" style="align-self:flex-start">Register rental</button>
+      </div>
+      <p class="status" id="ps-rent-status" style="margin-top:11px"></p>
+    </div>
+    <div class="panel">
+      <p class="panel-label">Register Farmland for Guidance</p>
+      <div class="row" style="flex-direction:column; gap:8px">
+        <input type="number" id="ps-farm-id" placeholder="Property ID" style="padding:8px">
+        <select id="ps-soil" style="padding:8px">
+          <option value="Black soil">Black soil</option>
+          <option value="Red soil">Red soil</option>
+          <option value="Laterite">Laterite</option>
+        </select>
+        <input type="text" id="ps-region" placeholder="Region/District" style="padding:8px">
+        <input type="number" id="ps-acres" placeholder="Size (acres)" style="padding:8px">
+        <select id="ps-irrigation" style="padding:8px">
+          <option value="Rainfall">Rainfall</option>
+          <option value="Well">Well</option>
+          <option value="Bore">Bore</option>
+          <option value="Drip">Drip</option>
+        </select>
+        <button class="btn" id="ps-reg-farm" style="align-self:flex-start">Register farmland</button>
+      </div>
+      <p class="status" id="ps-farm-status" style="margin-top:11px"></p>
+    </div>
+    <div id="ps-summary"></div>
+  </section>
+
+  <p class="colophon" id="colophon"></p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+/* Fees and rents are hundreds or thousands, not crores. money() rounds to the
+   nearest lakh, so a ₹750 lead fee renders as "₹0 L" — use rupees() for any
+   amount that is not a property price. */
+const rupees = v => (v == null || v === "") ? "—"
+  : "₹" + Number(v).toLocaleString("en-IN", {maximumFractionDigits: 0});
+const money = v => { if(!v) return "—"; const l=v/1e5;
+  return l>=100 ? "₹"+(l/100).toFixed(2).replace(/\.00$/,"")+" Cr" : "₹"+Math.round(l)+" L"; };
+
+let HEALTH = {};
+
+/* tabs */
+document.querySelectorAll(".mode-btn").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".mode-btn").forEach(o => {
+    const on = o===t; o.setAttribute("aria-selected", on);
+    $("#pane-"+o.dataset.pane).hidden = !on;
+  });
+  if (t.dataset.pane === "seller" && !$("#jarvis-log").children.length) jarvisStart();
+  if (t.dataset.pane === "revenue")  loadRevenueDashboard();
+  if (t.dataset.pane === "playbook") { loadBuildPlan(); loadBeachhead(); }
+  if (t.dataset.pane === "postsale") loadPostSaleSummary();
+  if (t.dataset.pane === "money") { moneyLoadProperties(); stagingLoad(); }
+  if (t.dataset.pane === "overview") loadOverview();
+  if (t.dataset.pane === "compare") cmpLoad();
+  if (t.dataset.pane === "steps") stepsLoad();
+  if (t.dataset.pane === "rentals") {
+    if (!$("#ultron-log").children.length) ultronStart();
+    loadRentalList();
+  }
+});
+
+/* health */
+fetch("/api/v1/health").then(r=>r.json()).then(h=>{
+  HEALTH = h;
+  $("#stamp").innerHTML =
+    `<span class="dot ${h.semantic_search?"on":"off"}"></span>${h.semantic_search?"semantic":"lexical"} search<br>` +
+    `<span class="dot ${h.auth_required?"on":"off"}"></span>${h.auth_required?"auth on":"auth off"}<br>` +
+    `<span class="dot ${h.whatsapp_outbound==="live"?"on":"off"}"></span>whatsapp ${h.whatsapp_outbound}`;
+  const warns = [h.warning, h.auth_warning].filter(Boolean);
+  if (warns.length){ $("#banner").textContent = warns.join("  •  "); $("#banner").hidden = false; }
+  $("#colophon").innerHTML =
+    `<b>What this is.</b> One app over a real backend: hybrid search (SQL constraints + vector
+     similarity) with verification gating, floor-plan reading, conversational seller intake, and
+     document triage. <b>Unverified stock never reaches a buyer</b> — new listings enter pending
+     and become visible only after an advocate signs the title opinion.
+     ${h.semantic_search?"":"<b>Matching is currently lexical, not semantic</b> — it scores word overlap. Set EMBEDDING_PROVIDER before showing this to buyers. "}
+     Document checks triage; they are not a title opinion.`;
+}).catch(()=>{});
+
+/* ---------------- buyer ---------------- */
+const BRIEFS = [
+  "3BHK flat in Whitefield under 1.3 crore, ready to move",
+  "plot near Devanahalli under 1 crore",
+  "2BHK in Sarjapur below 90 lakhs",
+  "villa in Hebbal, budget 3.5 crore",
+  "2BHK flat in Jayanagar under 90 lakh",
+];
+BRIEFS.forEach(x=>{ const b=document.createElement("button");
+  b.className="chip"; b.textContent=x;
+  b.onclick=()=>{ $("#brief").value=x; runSearch(); };
+  $("#brief-chips").appendChild(b); });
+
+function renderListings(matches, into){
+  if(!matches.length){
+    into.innerHTML = `<p class="empty">Nothing verified matches that brief. In production this
+      is logged as a sourcing requirement for the pilot team.</p>`;
+    return;
+  }
+  into.innerHTML = matches.map((m,i)=>{
+    const st = m.is_verified ? "verified" : "pending";
+    const specs = [m.config, m.area_sqft && m.area_sqft+" sqft", m.possession,
+      m.facing && m.facing+" facing", m.khata, m.score!=null && "score "+m.score]
+      .filter(Boolean).map(s=>`<span>${esc(s)}</span>`).join("");
+    return `<li class="listing ${i===0?"top":""}">
+      <div class="stripe ${st}"></div>
+      <div class="rank">${String(i+1).padStart(2,"0")}</div>
+      <div class="listing-main">
+        <p class="listing-title">${esc(m.title)}</p>
+        <p class="listing-where">${esc([m.location_name,m.city].filter(Boolean).join(", "))}</p>
+        ${specs?`<p class="specs">${specs}</p>`:""}
+        ${m.why?`<p class="why">${esc(m.why)}</p>`:""}
+        ${m.concern?`<p class="concern">${esc(m.concern)}</p>`:""}
+        <div class="safety">
+          <button class="safety-btn" data-safety="${m.id}">Before you contact or pay →</button>
+          <div id="safety-${m.id}"></div>
+        </div>
+      </div>
+      <div class="listing-right">
+        <div class="price">${money(m.price_inr)}</div>
+        <span class="badge ${st}">${m.is_verified?"Title verified":"Pending"}</span>
+      </div></li>`;
+  }).join("");
+}
+
+async function runSearch(){
+  const btn=$("#find"); btn.disabled=true; $("#find-status").textContent="Searching…";
+  $("#find-status").classList.remove("err");
+  try{
+    const r=await fetch("/api/v1/search",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({user_prompt:$("#brief").value,limit:5})});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"Search failed");
+    const c=d.parsed_constraints;
+    const parsed=Object.entries(c).filter(([,v])=>v!=null)
+      .map(([k,v])=>k+"="+(k==="max_price"?money(v):v)).join("   ");
+    $("#parsed").textContent = parsed?"understood → "+parsed:"";
+    $("#results-title").textContent = d.count?"Ranked for your brief":"Verified inventory";
+    $("#results-count").textContent =
+      `${d.count} match${d.count===1?"":"es"} · ${d.semantic?"semantic":"lexical"} · rationale: ${d.rationale_source}`;
+    $("#buyer-notice").innerHTML = d.notice?`<div class="notice">${esc(d.notice)}</div>`:"";
+    renderListings(d.matches, $("#listings"));
+    $("#find-status").textContent="";
+  }catch(e){
+    $("#find-status").textContent=e.message; $("#find-status").classList.add("err");
+  }finally{ btn.disabled=false; }
+}
+$("#find").onclick=runSearch;
+$("#brief").addEventListener("keydown",e=>{ if(e.key==="Enter"&&(e.metaKey||e.ctrlKey)) runSearch(); });
+
+/* ---------------- plan ---------------- */
+fetch("/api/v1/plan/status").then(r=>r.json()).then(s=>{
+  if(!s.available){
+    $("#plan-go").disabled = true;
+    $("#plan-status").textContent = s.reason;
+  }
+}).catch(()=>{});
+
+$("#plan-file").onchange = () => {
+  const f=$("#plan-file").files[0]; const box=$("#plan-preview"); box.innerHTML="";
+  if(!f) return;
+  const img=document.createElement("img"); const url=URL.createObjectURL(f);
+  img.src=url; img.alt=f.name; img.onload=()=>URL.revokeObjectURL(url);
+  box.appendChild(img);
+};
+
+$("#plan-go").onclick = async () => {
+  const f=$("#plan-file").files[0];
+  if(!f){ $("#plan-status").textContent="Choose a plan image first."; return; }
+  const btn=$("#plan-go"); btn.disabled=true;
+  $("#plan-status").textContent="Reading the plan…"; $("#plan-status").classList.remove("err");
+  try{
+    const fd=new FormData(); fd.append("file",f);
+    if($("#plan-note").value) fd.append("note",$("#plan-note").value);
+    const r=await fetch("/api/v1/plan/match",{method:"POST",body:fd});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"Plan reading failed");
+
+    const rd=d.reading||{};
+    let html="";
+    if(rd.available===false){ html=`<div class="panel"><p class="empty">${esc(rd.reason)}</p></div>`; }
+    else if(rd.error||rd.is_floor_plan===false){
+      html=`<div class="panel"><p class="empty">${esc(rd.error||"That does not look like a floor plan.")}</p></div>`;
+    }else{
+      const rows=[["Bedrooms",rd.bedrooms],["Bathrooms",rd.bathrooms],
+        ["Built-up",rd.built_up_sqft&&rd.built_up_sqft+" sqft"],["Floors",rd.floors]]
+        .filter(([,v])=>v).map(([k,v])=>`<span>${esc(k)}: ${esc(v)}</span>`).join("");
+      html=`<div class="panel"><p class="panel-label">What the plan shows</p>
+        ${rows?`<p class="specs">${rows}</p>`:""}
+        ${(rd.layout_notes||[]).map(n=>`<p class="why">• ${esc(n)}</p>`).join("")}
+        ${(rd.unreadable||[]).length?`<p class="concern">Could not make out: ${
+          esc(rd.unreadable.join("; "))}</p>`:""}
+        ${d.brief?`<p class="meta" style="margin-top:12px">searched as → ${esc(d.brief)}</p>`:""}
+      </div>`;
+      if(d.results){
+        html+=`<div class="results-head"><h2>Closest in our inventory</h2>
+          <span class="count">${d.results.count} match${d.results.count===1?"":"es"}</span></div>
+          <ul class="listing-list" id="plan-listings"></ul>`;
+      }
+    }
+    $("#plan-out").innerHTML=html;
+    if(d.results) renderListings(d.results.matches, $("#plan-listings"));
+    $("#plan-status").textContent="";
+  }catch(e){
+    $("#plan-status").textContent=e.message; $("#plan-status").classList.add("err");
+  }finally{ btn.disabled=false; }
+};
+
+
+/* ---------------- compare · the trade, not a ranking ---------------- */
+let CMP_PICK = [];
+let CMP_PROPS = [];
+
+async function cmpLoad(){
+  if(CMP_PROPS.length) return;
+  try{
+    const d = await (await fetch("/api/v1/properties?limit=200")).json();
+    CMP_PROPS = (d.properties||[]).filter(p=>p.price_inr);
+    $("#cmp-picker").innerHTML = CMP_PROPS.map(p=>
+      `<button class="chip" data-cmp="${p.id}">${esc(p.title)} · ${money(p.price_inr)}</button>`).join("");
+    $("#cmp-picker").querySelectorAll("[data-cmp]").forEach(b=>{
+      b.onclick = ()=>{
+        const id = Number(b.dataset.cmp);
+        const i = CMP_PICK.indexOf(id);
+        if(i>=0){ CMP_PICK.splice(i,1); b.classList.remove("on"); }
+        else if(CMP_PICK.length>=4){ $("#cmp-status").textContent="Four at a time — beyond that it stops being readable."; return; }
+        else { CMP_PICK.push(id); b.classList.add("on"); }
+        $("#cmp-status").textContent = CMP_PICK.length<2 ? "Pick at least two." : `${CMP_PICK.length} selected.`;
+      };
+    });
+    // a sensible opening pair so the tab is never an empty shell
+    const seed = CMP_PROPS.slice(0,2).map(p=>p.id);
+    seed.forEach(id=>{ CMP_PICK.push(id);
+      $("#cmp-picker").querySelector(`[data-cmp="${id}"]`)?.classList.add("on"); });
+  }catch(e){ $("#cmp-picker").innerHTML = '<p class="empty">Could not load the catalogue.</p>'; }
+}
+
+async function cmpRun(){
+  if(CMP_PICK.length<2){ $("#cmp-status").textContent="Pick at least two."; return; }
+  const q = CMP_PICK.map(i=>`ids=${i}`).join("&");
+  const income = $("#cmp-income").value || 200000;
+  $("#cmp-status").textContent="Working…"; $("#cmp-go").disabled=true;
+  try{
+    const r = await fetch(`/api/v1/compare?${q}&monthly_income_inr=${income}`);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail||"Compare failed");
+    $("#cmp-status").textContent="";
+    renderCompare(d);
+  }catch(e){
+    $("#cmp-status").textContent=e.message; $("#cmp-status").classList.add("err");
+    $("#cmp-out").innerHTML="";
+  }finally{ $("#cmp-go").disabled=false; }
+}
+
+function renderCompare(d){
+  const C = d.columns;
+  const row = (label, get, hint) => `<tr>
+    <td style="color:var(--faint)">${esc(label)}${hint?`<span>${esc(hint)}</span>`:""}</td>
+    ${C.map(c=>`<td>${get(c)}</td>`).join("")}</tr>`;
+
+  $("#cmp-out").innerHTML = `
+    ${d.findings.map(f=>`<div class="issue ${esc(f.severity)}">
+        <b>${esc(f.title)}</b>${esc(f.detail)}</div>`).join("")}
+
+    <div class="panel">
+      <p class="panel-label">Side by side</p>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th></th>${C.map(c=>`<th>${esc(c.title)}<span style="display:block;color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0;margin-top:3px">${esc(c.locality||"")}</span></th>`).join("")}</tr></thead>
+        <tbody>
+          ${row("Listed",  c=>`<b>${esc(c.listed_display)}</b>`)}
+          ${row("All-in",  c=>`<b style="color:var(--seal)">${esc(c.all_in_display)}</b>`, "with duties")}
+          ${row("Duties",  c=>`${esc(c.extras_display)} <span style="display:inline;color:var(--faint)">(${c.extras_percent}%)</span>`)}
+          ${row("Rate",    c=>c.rate_per_sqft?`₹${c.rate_per_sqft.toLocaleString("en-IN")}/sqft`:"—")}
+          ${row("Bank will lend", c=>c.fundable
+              ? esc(c.max_loan_display)
+              : `<span style="color:var(--bad)">nothing — B-Khata</span>`)}
+          ${row("Cash you need", c=>`<b>${esc(c.cash_needed_display)}</b>`, "deposit + duties")}
+          ${row("EMI",     c=>c.fundable?esc(c.emi_display):"—")}
+          ${row("Our estimate", c=>c.estimate_display
+              ? `${esc(c.estimate_display)} <span style="display:inline;color:var(--faint)">${c.gap_percent!=null?(c.gap_percent>0?"+":"")+c.gap_percent+"%":""}</span>`
+              : "—")}
+          ${row("Title",   c=>c.is_verified
+              ? `<span class="badge ok">verified</span>`
+              : `<span class="badge warn">pending</span>`)}
+          ${row("Khata",   c=>esc(c.khata||"—"))}
+          ${row("Facing",  c=>`${esc(c.facing)} <span style="display:inline;color:var(--faint)">${c.sun_hours.toLocaleString("en-IN")} h/yr</span>`, "direct sun")}
+          ${row("Net yield", c=>c.yield_percent!=null?`${c.yield_percent}%`:"—", "if let out")}
+        </tbody>
+      </table>
+      </div>
+      <p class="disc" style="margin-top:13px">${esc(d.disclaimer)}</p>
+    </div>`;
+}
+$("#cmp-go").onclick = cmpRun;
+
+/* ---------------- buying steps · the order ---------------- */
+async function stepsLoad(){
+  const sel = $("#steps-prop");
+  if(sel.options.length) return;
+  try{
+    const d = await (await fetch("/api/v1/properties?limit=200")).json();
+    sel.innerHTML = (d.properties||[]).filter(p=>p.price_inr)
+      .map(p=>`<option value="${p.id}">${esc(p.title)} — ${money(p.price_inr)}</option>`).join("");
+    stepsRun();
+  }catch(e){ sel.innerHTML='<option>could not load</option>'; }
+}
+
+async function stepsRun(){
+  const id = $("#steps-prop").value;
+  if(!id) return;
+  $("#steps-status").textContent="Working…";
+  try{
+    const r = await fetch(`/api/v1/conveyance?property_id=${id}`);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail||"Failed");
+    $("#steps-status").textContent="";
+    $("#steps-out").innerHTML = `
+      <div class="callout" style="border-color:var(--seal);background:var(--seal-dim);color:var(--seal)">
+        <b>The rule</b>${esc(d.rule)}</div>
+
+      <div class="panel">
+        <p class="panel-label">${esc(d.title||"")} · ${esc(d.price_display)} listed, ${esc(d.total_outlay_display)} total outlay</p>
+        ${d.stages.map(s=>`
+          <div class="phase ${s.money_display?"done":"pending"}">
+            <div class="phase-no">${s.n}</div>
+            <div>
+              <p class="phase-name">${esc(s.stage)}
+                <span style="font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;margin-left:8px">${esc(s.when)}</span>
+                ${s.money_display?`<span style="font-family:var(--mono);font-size:11px;color:var(--seal);margin-left:8px">${esc(s.money_display)}</span>`:""}
+              </p>
+              <p class="phase-what">${esc(s.what)}</p>
+              ${s.money_why?`<p class="phase-ev" style="margin-bottom:6px">${esc(s.money_why)}</p>`:""}
+              <div class="ev">${s.documents.map(x=>`<span>${esc(x)}</span>`).join("")}</div>
+              <p class="phase-what" style="color:var(--warn);margin-top:8px;font-size:13px">
+                <b style="font-weight:600">Goes wrong:</b> ${esc(s.goes_wrong)}</p>
+              ${s.platform?`<p class="phase-ev" style="margin-top:6px;color:var(--seal)">↳ ${esc(s.platform)}</p>`:""}
+            </div>
+          </div>`).join("")}
+      </div>
+
+      <div class="callout"><b>Most missed</b>${esc(d.most_missed)}</div>`;
+  }catch(e){
+    $("#steps-status").textContent=e.message; $("#steps-status").classList.add("err");
+  }
+}
+$("#steps-go").onclick = stepsRun;
+
+/* ---------------- overview (the deck's opening slide) ---------------- */
+async function loadOverview(){
+  try{
+    const [props, ag] = await Promise.all([
+      fetch("/api/v1/properties?limit=200").then(r=>r.json()),
+      fetch("/api/v1/agent/status").then(r=>r.json()),
+    ]);
+    const list = props.properties || [];
+    const sale = list.filter(p => p.price_inr);
+    $("#ov-verified").textContent = sale.filter(p=>p.is_verified).length;
+    $("#ov-total").textContent    = sale.length;
+    $("#ov-watches").textContent  = ag.active_watches ?? 0;
+    if(!ag.running){
+      $("#ov-watches").style.color = "var(--warn)";
+      $("#ov-watches").nextElementSibling.textContent =
+        "watches saved, but the loop is not running — start it with python agent.py";
+    }
+  }catch(e){ /* the deck must still read if the API is down */ }
+  // the build plan already knows how to render itself; borrow it here
+  const host = $("#ov-plan");
+  if(host && !host.children.length){
+    const keep = $("#pb-plan");
+    if(keep){ await loadBuildPlan(); host.innerHTML = keep.innerHTML; }
+  }
+}
+
+/* ------------- what it costs: valuation · duties · lending · yield ------- */
+async function moneyLoadProperties(){
+  const sel=$("#money-prop");
+  if(sel.options.length) return;
+  try{
+    const d=await (await fetch("/api/v1/properties?limit=100")).json();
+    sel.innerHTML=(d.properties||[])
+      .filter(p=>p.price_inr)
+      .map(p=>`<option value="${p.id}">${esc(p.title)} — ${money(p.price_inr)}</option>`)
+      .join("");
+  }catch(e){ sel.innerHTML='<option value="">could not load</option>'; }
+}
+
+async function moneyRun(){
+  const id=$("#money-prop").value;
+  if(!id){ $("#money-status").textContent="Pick a property."; return; }
+  const income=$("#money-income").value||0, emi=$("#money-emi").value||0,
+        rate=$("#money-rate").value||8.6, years=$("#money-years").value||20;
+  $("#money-status").textContent="Working…"; $("#money-status").classList.remove("err");
+  const btn=$("#money-go"); btn.disabled=true;
+  try{
+    const [aff,val,yld]=await Promise.all([
+      fetch(`/api/v1/properties/${id}/affordability?monthly_income_inr=${income}`
+            +`&existing_emi_inr=${emi}&annual_rate_percent=${rate}&tenure_years=${years}`).then(r=>r.json()),
+      fetch(`/api/v1/properties/${id}/valuation`).then(r=>r.json()),
+      fetch(`/api/v1/properties/${id}/yield`).then(r=>r.json()),
+    ]);
+    $("#money-status").textContent="";
+    renderMoney(aff,val,yld);
+  }catch(e){
+    $("#money-status").textContent=e.message; $("#money-status").classList.add("err");
+  }finally{ btn.disabled=false; }
+}
+
+function renderMoney(aff,val,yld){
+  const a=aff.acquisition, l=aff.loan;
+
+  const costRows=a.lines.map(x=>`<tr>
+      <td>${esc(x.item)}<span style="display:block;font-size:11.5px;color:var(--faint)">${esc(x.note)}</span></td>
+      <td style="text-align:right;white-space:nowrap">${esc(x.display)}</td></tr>`).join("");
+
+  const blockers=(l&&l.blockers||[]).map(b=>`<div class="issue ${esc(b.severity)}">
+      <code>${esc(b.code)}</code><b style="display:block;margin:2px 0 3px">${esc(b.title)}</b>
+      ${esc(b.detail)}</div>`).join("");
+
+  const valBlock = val && val.estimate_display ? `
+    <div class="panel">
+      <p class="panel-label">Is the asking price fair?</p>
+      <p style="font-size:22px;font-weight:600;margin:6px 0 2px">${esc(val.estimate_display)}
+        <span style="font-size:13px;font-weight:400;color:var(--soft)"> our estimate vs ${esc(val.listed_display)} listed</span></p>
+      <p class="phase-ev" style="margin-bottom:10px">${esc(val.verdict||"")} ·
+        <b>${esc(val.confidence)}</b> confidence</p>
+      ${(val.adjustments||[]).map(x=>`<div class="ev"><span class="${x.percent<0?'warn':'ok'}">${x.percent>0?'+':''}${x.percent}%</span> ${esc(x.factor)}</div>`).join("")}
+      ${val.sunlight ? `<div style="margin-top:15px;padding-top:14px;border-top:1px solid var(--line)">
+        <p class="panel-label" style="margin-bottom:7px">Sunlight · ${esc(val.sunlight.facing)}</p>
+        <p style="font-size:13.5px;line-height:1.62;margin:0">
+          <b>${val.sunlight.annual_direct_sun_hours.toLocaleString("en-IN")} hours</b>
+          of direct sun a year · peak ${esc(val.sunlight.peak_exposure)}</p>
+        <p style="font-size:13px;line-height:1.6;color:var(--soft);margin-top:5px">${esc(val.sunlight.note)}</p>
+        <p class="phase-ev" style="margin-top:8px">${esc(val.sunlight.method)}</p>
+      </div>` : ""}
+    </div>` : "";
+
+  const yieldBlock = yld && yld.gross_yield_percent!=null ? `
+    <div class="panel">
+      <p class="panel-label">If you let it out</p>
+      <p style="font-size:13.5px;line-height:1.7;margin:0">
+        Gross <b>${yld.gross_yield_percent}%</b> · net <b>${yld.net_yield_percent}%</b>
+        on the all-in cost of ${esc(money(yld.all_in_cost_inr))}.<br>
+        <span style="color:var(--soft)">${esc(yld.verdict)}</span></p>
+      <p class="phase-ev" style="margin-top:8px">rent ${esc(rupees(yld.monthly_rent_inr))}/month —
+        ${yld.rent_is_estimate?"estimated from "+esc(yld.rent_source):"from the letting on file"}</p>
+    </div>` : "";
+
+  $("#money-out").innerHTML=`
+    <div class="panel">
+      <p class="panel-label">The real cost</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 12px"><b>${esc(a.headline)}</b></p>
+      <table><tbody>${costRows}</tbody></table>
+      <p class="disc" style="margin-top:10px">${esc(a.disclaimer)}</p>
+    </div>
+    ${l?`<div class="panel">
+      <p class="panel-label">Will a bank fund it?</p>
+      <p style="font-size:15px;line-height:1.6;margin:0 0 10px"><b>${esc(l.headline)}</b></p>
+      ${blockers}
+      ${l.fundable?`<table><tbody>
+        <tr><td>Maximum loan</td><td style="text-align:right">${esc(l.max_loan_display)}</td></tr>
+        <tr><td>Your down payment</td><td style="text-align:right">${esc(l.down_payment_display)} (${l.down_payment_percent}%)</td></tr>
+        <tr><td>Monthly EMI</td><td style="text-align:right">${esc(l.emi_display)}</td></tr>
+        <tr><td>Interest over ${l.tenure_years} years</td><td style="text-align:right">${esc(l.total_interest_display)}</td></tr>
+        <tr><td>Limited by</td><td style="text-align:right">${esc(l.binding_constraint)}</td></tr>
+      </tbody></table>`:""}
+      ${aff.cash_note?`<p style="margin-top:12px;padding:11px 13px;border-left:3px solid var(--accent);background:var(--sunk);font-size:13.5px;line-height:1.6">
+        ${esc(aff.cash_note)}</p>`:""}
+      <p class="disc" style="margin-top:10px">${esc(l.disclaimer)}</p>
+    </div>`:""}
+    ${valBlock}${yieldBlock}`;
+}
+$("#money-go").onclick=moneyRun;
+
+/* ------------- staging + renovation costing (parity with the dashboard) --- */
+let ST_SCOPES=[], ST_PICKED=new Set(["deep_clean","paint"]);
+async function stagingLoad(){
+  if(ST_SCOPES.length) return;
+  try{
+    const d=await (await fetch("/api/v1/renovation/scopes")).json();
+    ST_SCOPES=d.scopes||[];
+    $("#st-room").innerHTML=(d.rooms||[]).map(r=>`<option value="${r}">${esc(r.replace(/_/g," "))}</option>`).join("");
+    $("#st-style").innerHTML=(d.styles||[]).map(x=>`<option value="${x}">${esc(x)}</option>`).join("");
+    stagingChips();
+  }catch(e){ $("#st-status").textContent="Could not load renovation options."; }
+}
+function stagingChips(){
+  $("#st-scopes").innerHTML=ST_SCOPES.map(s=>
+    `<button data-scope="${esc(s.key)}" title="${esc(s.note)}"
+      style="${ST_PICKED.has(s.key)?'border-color:var(--accent);color:var(--accent);background:var(--accent-bg)':''}"
+      >${esc(s.label)}</button>`).join("");
+  $$("#st-scopes button").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.scope;
+    ST_PICKED.has(k)?ST_PICKED.delete(k):ST_PICKED.add(k);
+    stagingChips();
+  });
+}
+async function stagingCost(){
+  if(!ST_PICKED.size){ $("#st-status").textContent="Pick at least one scope of work."; return; }
+  const area=$("#st-area").value||1500, grade=$("#st-grade").value;
+  const qs=[...ST_PICKED].map(k=>`scopes=${encodeURIComponent(k)}`).join("&");
+  $("#st-status").textContent="Costing…"; $("#st-go").disabled=true;
+  try{
+    const r=await fetch(`/api/v1/renovation/estimate?${qs}&area_sqft=${area}&grade=${grade}`,{method:"POST"});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"Could not cost that.");
+    $("#st-status").textContent="";
+    $("#st-out").innerHTML=`<div class="panel">
+      <p class="panel-label">${esc(d.total_cost_display)} · range ${esc(d.range_display)} · about ${d.estimated_weeks} weeks</p>
+      <table><thead><tr><th>Work</th><th>Cost</th><th>Recovers</th><th>Net at resale</th></tr></thead><tbody>
+      ${d.lines.map(l=>`<tr>
+        <td>${esc(l.label)}<span style="display:block;font-size:11.5px;color:var(--faint);margin-top:2px">${esc(l.note)}</span></td>
+        <td>${esc(l.cost_display)}</td><td>${l.recovery_percent}%</td>
+        <td style="color:${l.net_inr>=0?'var(--ok)':'var(--bad)'};font-family:var(--mono)">
+          ${l.net_inr>=0?'+':'−'}₹${Math.abs(l.net_inr).toLocaleString('en-IN')}</td></tr>`).join("")}
+      </tbody></table>
+      <p class="kicker" style="margin:16px 0 0">${esc(d.recommendation)}</p>
+      <p class="disc" style="margin-top:9px">${esc(d.disclaimer)}</p></div>`;
+  }catch(e){ $("#st-status").textContent=e.message; $("#st-status").classList.add("err"); }
+  finally{ $("#st-go").disabled=false; }
+}
+async function stagingStage(){
+  const fd=new FormData();
+  fd.set("room",$("#st-room").value); fd.set("style",$("#st-style").value);
+  fd.set("area_sqft",$("#st-area").value||1500);
+  $("#st-status").textContent="Staging…";
+  try{
+    const r=await fetch("/api/v1/renovation/stage",{method:"POST",body:fd});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"Could not stage that.");
+    $("#st-status").textContent="";
+    $("#st-out").innerHTML=`<div class="panel">
+      <p class="panel-label">Staging · ${esc(d.room.replace(/_/g," "))} · ${esc(d.style)}</p>
+      ${d.rendered&&d.image?`<img src="${esc(d.image)}" alt="Staged ${esc(d.room)}" style="width:100%;border-radius:8px">`
+        :`<div class="callout"><b>Nothing was generated</b>${esc(d.status)}</div>`}
+      <p class="panel-label" style="margin-top:14px">Prompt</p>
+      <p class="disc" style="margin:0">${esc(d.prompt)}</p>
+      <p class="disc" style="margin-top:11px">${esc(d.honesty_note)}</p></div>`;
+  }catch(e){ $("#st-status").textContent=e.message; $("#st-status").classList.add("err"); }
+}
+$("#st-go").onclick=stagingCost;
+$("#st-stage").onclick=stagingStage;
+
+
+/* ---------------- ultron (rentals) ---------------- */
+let ultron={stage:null,draft:{}};
+function umsg(who,text,cls){
+  const log=$("#ultron-log");
+  const d=document.createElement("div");
+  if(cls==="receipt"){ d.className="receipt"; d.textContent=text; }
+  else{
+    d.className="msg"+(who==="You"?" me":"");
+    d.innerHTML=`<div class="who">${esc(who)}</div><div class="bubble">${esc(text)}</div>`;
+  }
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function ultronStart(){
+  $("#ultron-log").innerHTML=""; ultron={stage:null,draft:{}};
+  $("#ultron-state").textContent=""; $("#ultron-flags").innerHTML="";
+  umsg("Ultron","I'm Ultron. I handle lettings — any property you rent out, sold through here or not.\n\nI'll take the details one at a time, and I'll tell you if the deposit or the lease term would land you on the wrong side of the Model Tenancy Act.\n\nWhat are you letting — an apartment, a villa, or commercial space?");
+  ultron.stage="ASK_WHAT";
+}
+function renderUltronFlags(notes){
+  if(!notes || !notes.length){ $("#ultron-flags").innerHTML=""; return; }
+  $("#ultron-flags").innerHTML=`<div class="panel">
+    <p class="panel-label">Before a tenant signs</p>
+    ${notes.map(n=>`<div class="issue ${esc(n.severity)}">
+      <code>${esc(n.code)}</code><b style="display:block;margin:2px 0 3px">${esc(n.title)}</b>
+      ${esc(n.detail)}</div>`).join("")}</div>`;
+}
+async function ultronSend(){
+  const inp=$("#ultron-in"), text=inp.value.trim();
+  if(!text) return;
+  umsg("You",text); inp.value=""; $("#ultron-go").disabled=true;
+  try{
+    const r=await fetch("/api/v1/rental/chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text,stage:ultron.stage,draft:ultron.draft})});
+    const d=await r.json();
+    ultron.stage=d.stage; ultron.draft=d.draft;
+    umsg("Ultron",d.reply);
+    if(d.stage==="CONFIRM"&&d.summary) umsg("Ultron",d.summary,"receipt");
+    renderUltronFlags(d.compliance);
+    if(d.created){
+      umsg("Ultron",`Rental #${d.created.rental_id} listed · ownership unconfirmed`,"receipt");
+      loadRentalList();
+    }
+    $("#ultron-state").textContent = d.stage ? "stage: "+d.stage : "";
+  }catch(e){
+    umsg("Ultron","Something went wrong: "+e.message);
+  }finally{ $("#ultron-go").disabled=false; inp.focus(); }
+}
+$("#ultron-go").onclick=ultronSend;
+$("#ultron-in").addEventListener("keydown",e=>{ if(e.key==="Enter") ultronSend(); });
+$("#ultron-reset").onclick=ultronStart;
+
+async function loadRentalList(){
+  try{
+    const d=await (await fetch("/api/v1/rentals")).json();
+    if(!d.rentals || !d.rentals.length){
+      $("#ultron-list").innerHTML=`<div class="panel"><p class="empty">
+        No properties on the rental list yet.</p></div>`; return;
+    }
+    $("#ultron-list").innerHTML=`<div class="panel">
+      <p class="panel-label">On the rental list · ${d.rentals.length}</p>
+      <table><thead><tr><th>Property</th><th>Rent</th><th>Furnishing</th>
+        <th>Term</th><th>Status</th></tr></thead><tbody>
+      ${d.rentals.map(r=>`<tr>
+        <td>${esc(r.property_title||("#"+r.property_id))}<br>
+          <button class="btn-quiet tenant-brief" data-id="${r.id}"
+            style="margin-top:5px">Before you pay a deposit →</button></td>
+        <td>${rupees(r.monthly_rent_inr)}/mo${
+          r.deposit_inr?`<br><span class="meta">dep ${rupees(r.deposit_inr)}</span>`:""}</td>
+        <td>${esc(r.furnishing||"—")}</td>
+        <td>${esc(r.lease_terms||"—")}</td>
+        <td><span class="pill ${esc(r.status)}">${esc(r.status)}</span></td>
+      </tr>`).join("")}</tbody></table></div>`;
+    document.querySelectorAll(".tenant-brief").forEach(b=>{
+      b.onclick = () => tenantBrief(b.dataset.id);
+    });
+  }catch(e){ $("#ultron-list").innerHTML=""; }
+}
+
+/* ---------------- tenant safety ---------------- */
+async function tenantBrief(rentalId){
+  try{
+    const d = await (await fetch(`/api/v1/rentals/${rentalId}/safety`)).json();
+    $("#tenant-safety-out").innerHTML = `
+      <div class="panel">
+        <div class="verdict ${d.stance==="DO_NOT_PAY"?"RED_FLAGGED":
+                              d.stance==="PROCEED_WITH_CAUTION"?"PENDING":"PASSED"}">
+          ${esc(d.stance.replace(/_/g," "))}</div>
+        <p style="font-size:14px;line-height:1.6;margin:12px 0 0">${esc(d.headline)}</p>
+        ${d.deposit_inr?`<p class="phase-ev" style="margin-top:8px">deposit
+          <b>${rupees(d.deposit_inr)}</b> on rent <b>${rupees(d.monthly_rent_inr)}</b>/mo</p>`:""}
+        ${d.warnings.map(w=>`<div class="issue ${esc(w.severity)}"
+          style="margin-top:11px"><b style="display:block;margin-bottom:3px">${esc(w.title)}</b>
+          ${esc(w.detail)}</div>`).join("")}
+      </div>
+      <div class="panel">
+        <p class="panel-label">Before you pay a deposit</p>
+        ${d.money_rules.map(r=>`<div class="limit">
+          <b>${esc(r.rule)}</b><span>${esc(r.why)}</span></div>`).join("")}
+      </div>
+      <div class="panel">
+        <p class="panel-label">What the law already gives you</p>
+        ${d.your_rights.map(r=>`<div class="limit">
+          <b>${esc(r.right)}</b><span>${esc(r.detail)}</span></div>`).join("")}
+        <p class="disc">${esc(d.disclaimer)}</p>
+      </div>`;
+    $("#tenant-safety-out").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(e){
+    $("#tenant-safety-out").innerHTML=`<div class="panel"><p class="status err">${esc(e.message)}</p></div>`;
+  }
+}
+
+$("#tenant-scan-go").onclick = async () => {
+  const text = $("#tenant-msg").value.trim();
+  if(!text){ $("#tenant-scan-out").innerHTML=""; return; }
+  try{
+    const r = await fetch("/api/v1/tenant/scan",{method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify({text})});
+    const d = await r.json();
+    $("#tenant-scan-out").innerHTML = `<div style="margin-top:14px">
+      <div class="verdict ${d.count?"RED_FLAGGED":"PASSED"}">${
+        d.count? d.count+" pressure tactic"+(d.count>1?"s":"")+" found" : "Nothing recognised"}</div>
+      ${d.flags.map(f=>`<div class="issue high">
+        <code>${esc(f.phrase)}</code>${esc(f.concern)}</div>`).join("")}
+      <p class="disc">${esc(d.advice)}</p></div>`;
+  }catch(e){
+    $("#tenant-scan-out").innerHTML=`<p class="status err">${esc(e.message)}</p>`;
+  }
+};
+
+$("#tenant-rules-go").onclick = async () => {
+  try{
+    const d = await (await fetch("/api/v1/tenant/rules")).json();
+    $("#tenant-safety-out").innerHTML = `
+      <div class="panel">
+        <p class="panel-label">Before you pay a deposit</p>
+        ${d.money_rules.map(r=>`<div class="limit">
+          <b>${esc(r.rule)}</b><span>${esc(r.why)}</span></div>`).join("")}
+      </div>
+      <div class="panel">
+        <p class="panel-label">What the law already gives you</p>
+        <p style="font-size:13px;color:var(--soft);margin:0 0 10px">
+          Model Tenancy Act 2021. A landlord breaching these is usually relying
+          on you not knowing them.</p>
+        ${d.your_rights.map(r=>`<div class="limit">
+          <b>${esc(r.right)}</b><span>${esc(r.detail)}</span></div>`).join("")}
+      </div>
+      <div class="panel">
+        <p class="panel-label">Viewing a rental</p>
+        <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.9">
+          ${d.viewing_checklist.map(i=>`<li>${esc(i)}</li>`).join("")}
+        </ul>
+        <p class="disc">${esc(d.disclaimer)}</p>
+      </div>`;
+    $("#tenant-safety-out").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(e){
+    $("#tenant-safety-out").innerHTML=`<div class="panel"><p class="status err">${esc(e.message)}</p></div>`;
+  }
+};
+
+/* ---------------- jarvis ---------------- */
+let jarvis={stage:null,draft:{}};
+function jmsg(who,text,cls){
+  const log=$("#jarvis-log");
+  const d=document.createElement("div");
+  if(cls==="receipt"){ d.className="receipt"; d.textContent=text; }
+  else{
+    d.className="msg"+(who==="You"?" me":"");
+    d.innerHTML=`<div class="who">${esc(who)}</div><div class="bubble">${esc(text)}</div>`;
+  }
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function jarvisStart(){
+  $("#jarvis-log").innerHTML=""; jarvis={stage:null,draft:{}};
+  $("#jarvis-state").textContent="";
+  jmsg("Jarvis","I'm Jarvis. I'll take your property details one at a time and get it into the catalogue.\n\nWhat are you selling — an apartment, a villa, a plot, or commercial space?");
+  jarvis.stage="ASK_WHAT";
+}
+async function jarvisSend(){
+  const inp=$("#jarvis-in"), text=inp.value.trim();
+  if(!text) return;
+  jmsg("You",text); inp.value=""; $("#jarvis-go").disabled=true;
+  try{
+    const r=await fetch("/api/v1/seller/chat",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text,stage:jarvis.stage,draft:jarvis.draft})});
+    const d=await r.json();
+    jarvis.stage=d.stage; jarvis.draft=d.draft;
+    jmsg("Jarvis",d.reply);
+    if(d.stage==="CONFIRM"&&d.summary) jmsg("Jarvis",d.summary,"receipt");
+    if(d.created){
+      jmsg("Jarvis",`Listing #${d.created.id} created · status: verification pending`,"receipt");
+      PROP_ID = d.created.id;
+      PROP_TYPE = d.created.property_type;
+      $("#photo-btn").disabled = false;
+      await loadVerification();
+      runSearch();
+    }
+    $("#jarvis-state").textContent="stage="+d.stage+" · collected "+
+      Object.keys(d.draft||{}).length+" field(s)";
+  }catch(e){ jmsg("Jarvis","Error: "+e.message); }
+  finally{ $("#jarvis-go").disabled=false; inp.focus(); }
+}
+$("#jarvis-go").onclick=jarvisSend;
+$("#jarvis-in").addEventListener("keydown",e=>{ if(e.key==="Enter") jarvisSend(); });
+$("#jarvis-reset").onclick=jarvisStart;
+
+/* ------------- buyer safety ------------- */
+document.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-safety]");
+  if(!btn) return;
+  const id = btn.dataset.safety, box = $("#safety-"+id);
+  if(box.innerHTML){ box.innerHTML=""; btn.textContent="Before you contact or pay →"; return; }
+  btn.textContent="Hide"; box.innerHTML='<p class="empty">Checking…</p>';
+  try{
+    const b = await (await fetch(`/api/v1/properties/${id}/safety`)).json();
+    box.innerHTML = `
+      <div class="stance ${esc(b.stance)}">${esc(b.stance.replace(/_/g," "))} — ${esc(b.headline)}</div>
+      ${b.warnings.map(w=>`<div class="swarn ${esc(w.severity)}">
+        <b>${esc(w.title)}</b>${esc(w.detail)}</div>`).join("")}
+      <p class="panel-label" style="margin:14px 0 4px">Rules that protect your money</p>
+      ${b.golden_rules.map(r=>`<div class="rule"><b>${esc(r.rule)}</b><span>${esc(r.why)}</span></div>`).join("")}
+      <p class="panel-label" style="margin:16px 0 4px">Before a site visit</p>
+      ${b.visit_checklist.map(c=>`<div class="rule">${esc(c)}</div>`).join("")}
+      <p class="disc">${esc(b.disclaimer)}</p>
+      <div class="row" style="margin-top:12px">
+        <input type="text" id="rep-${esc(id)}" placeholder="Something wrong with this listing? Describe it.">
+        <button class="btn-quiet" data-report="${esc(id)}">Report</button>
+      </div>`;
+  }catch(err){ box.innerHTML=`<p class="status err">${esc(err.message)}</p>`; }
+});
+
+document.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-report]");
+  if(!btn) return;
+  const id=btn.dataset.report, inp=$("#rep-"+CSS.escape(id));
+  const detail=(inp.value||"").trim();
+  if(!detail){ inp.focus(); return; }
+  btn.disabled=true;
+  try{
+    const r=await (await fetch("/api/v1/report",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({property_id:Number(id),reason:detail.slice(0,110),detail})})).json();
+    inp.value="";
+    btn.insertAdjacentHTML("afterend",
+      `<span class="state" style="color:var(--ok)">Reported${
+        r.red_flags&&r.red_flags.length?` · ${r.red_flags.length} red flag(s) detected`:""}</span>`);
+  }catch(err){ alert(err.message); }
+  finally{ btn.disabled=false; }
+});
+
+/* ------------- listing method switch ------------- */
+$("#sw-jarvis").onclick=()=>{
+  $("#sw-jarvis").setAttribute("aria-pressed","true");
+  $("#sw-form").setAttribute("aria-pressed","false");
+  $("#jarvis-panel").hidden=false; $("#quick-form").hidden=true;
+  if(!$("#jarvis-log").children.length) jarvisStart();
+};
+$("#sw-form").onclick=()=>{
+  $("#sw-form").setAttribute("aria-pressed","true");
+  $("#sw-jarvis").setAttribute("aria-pressed","false");
+  $("#quick-form").hidden=false; $("#jarvis-panel").hidden=true;
+};
+
+$("#f-submit").onclick=async()=>{
+  const num=id=>{const v=parseFloat($(id).value);return isNaN(v)?null:v;};
+  const lakh=num("#f-price");
+  const body={
+    title:$("#f-title").value.trim(),
+    property_type:$("#f-type").value,
+    location_name:$("#f-locality").value.trim(),
+    city:"Bengaluru",
+    price_inr:lakh!=null?lakh*1e5:null,
+    area_sqft:num("#f-area"),
+    config:$("#f-config").value.trim()||null,
+    possession:$("#f-possession").value,
+    khata:$("#f-khata").value||null,
+    rera_id:$("#f-rera").value.trim()||null,
+    amenities:[]
+  };
+  if(!body.title||!body.location_name||body.price_inr==null){
+    $("#f-status").textContent="Property, locality and price are required.";
+    $("#f-status").classList.add("err"); return;
+  }
+  $("#f-status").classList.remove("err"); $("#f-status").textContent="Submitting…";
+  $("#f-submit").disabled=true;
+  try{
+    const r=await fetch("/api/v1/listings/submit",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.detail||"Could not submit");
+    PROP_ID=d.id; PROP_TYPE=d.property_type; ANSWERS={};
+    $("#f-status").textContent=`Listing #${d.id} created — verification pending. Now submit the documents below.`;
+    $("#photo-btn").disabled=false;
+    await loadVerification();
+    $("#verify-out").scrollIntoView({behavior:"smooth",block:"start"});
+    runSearch();
+  }catch(e){ $("#f-status").textContent=e.message; $("#f-status").classList.add("err"); }
+  finally{ $("#f-submit").disabled=false; }
+};
+
+/* ------------- verification / uploads ------------- */
+let PROP_ID=null, PROP_TYPE=null, ANSWERS={}, CHECK=null;
+
+$("#photo-btn").onclick = () => $("#photo-file").click();
+$("#photo-file").onchange = async () => {
+  const files=[...$("#photo-file").files]; $("#photo-file").value="";
+  if(!files.length||!PROP_ID) return;
+  $("#photo-state").textContent="Uploading…";
+  for(const f of files){
+    const fd=new FormData(); fd.append("file",f); fd.append("kind","photo");
+    try{
+      const r=await fetch(`/api/v1/properties/${PROP_ID}/uploads`,{method:"POST",body:fd});
+      const d=await r.json();
+      if(!r.ok){ $("#photo-state").textContent=d.detail||"Upload failed"; continue; }
+      const img=document.createElement("img");
+      const url=URL.createObjectURL(f); img.src=url; img.alt=d.label;
+      img.onload=()=>URL.revokeObjectURL(url);
+      $("#photo-row").appendChild(img);
+    }catch(e){ $("#photo-state").textContent=e.message; }
+  }
+  $("#photo-state").textContent=`${$("#photo-row").children.length} photo(s) uploaded`;
+};
+
+async function loadVerification(){
+  if(!PROP_ID) return;
+  const r=await fetch("/api/v1/verification/checklist?property_type="+encodeURIComponent(PROP_TYPE||""));
+  CHECK=await r.json();
+  const cur=await (await fetch(`/api/v1/properties/${PROP_ID}/verification`)).json();
+  renderVerification(cur);
+}
+
+function renderVerification(state){
+  const ev=state.evidence||{}, held=new Set(state.documents_held||[]);
+  const upByCode={}; (state.uploads||[]).forEach(u=>{ if(u.doc_code) upByCode[u.doc_code]=u; });
+
+  const LADDER=["NOT_SUBMITTED","PARTIAL","SUBMITTED","MACHINE_CHECKED","ADVOCATE_VERIFIED"];
+  const cur=state.level, flagged=(cur==="FLAGGED");
+  const idx=LADDER.indexOf(cur);
+  const ladder=LADDER.map((l,i)=>{
+    let cls="rung";
+    if(flagged&&i<=1) cls+=" bad";
+    else if(idx>=0&&i<idx) cls+=" done";
+    else if(i===idx) cls+=" now";
+    return `<div class="${cls}">${esc(l.replace(/_/g," "))}</div>`;
+  }).join("");
+
+  const qs=CHECK.questions.map(q=>{
+    const val=ANSWERS[q.id];
+    return `<div class="q">
+      <p class="q-text">${esc(q.question)}</p>
+      <span class="yn" data-q="${esc(q.id)}">
+        <button type="button" data-v="yes" aria-pressed="${val===true}">Yes</button>
+        <button type="button" data-v="no"  aria-pressed="${val===false}">No</button>
+      </span>
+      ${val!=null&&val!==q.safe_answer?`<p class="q-why">${esc(q.why)}</p>`:""}
+    </div>`;
+  }).join("");
+
+  const docs=CHECK.documents.map(d=>{
+    const u=upByCode[d.code], have=held.has(d.code);
+    const badges=u?`<div class="ev">
+      <span class="ok">sha256 ${esc(u.sha256)}…</span>
+      <span class="${u.encrypted?"ok":"warn"}">${u.encrypted?"encrypted":"NOT encrypted"}</span>
+      ${u.media_type==="application/pdf"?`<span class="${u.signed?"ok":"warn"}">${
+        u.signed?"digitally signed":"unsigned"}</span>`:""}
+      <span class="${u.text_read?"ok":"warn"}">${u.text_read?"text read":"no text layer"}</span>
+      <span>${Math.round((u.bytes||0)/1024)} KB</span>
+    </div>`:"";
+    return `<div class="doc ${have?"have":""}">
+      <div class="doc-main">
+        <p class="doc-label">${esc(d.label)}${have?" ✓":""}</p>
+        <p class="doc-why">${esc(d.why)}</p>
+        ${badges}
+      </div>
+      <span class="doc-up">
+        <input type="file" id="up-${esc(d.code)}" accept="image/*,application/pdf">
+        <label for="up-${esc(d.code)}">${have?"Replace":"Upload"}</label>
+      </span>
+    </div>`;
+  }).join("");
+
+  const findings=(state.findings||[]).map(f=>`
+    <div class="finding ${esc(f.severity||"medium")}">
+      ${f.question?`<b>${esc(f.question)}</b>`:""}${esc(f.detail)}
+    </div>`).join("");
+
+  $("#verify-out").innerHTML=`<div class="vpanel">
+    <p class="panel-label">Document verification</p>
+    <div class="ladder">${ladder}</div>
+    <div class="vstat ${flagged?"HIGH_RISK":(cur==="MACHINE_CHECKED"?"READY_FOR_ADVOCATE":"NEEDS_REVIEW")}">${
+      esc(state.level_label||"")}${ev.high_count?` — ${ev.high_count} serious issue(s)`:""}</div>
+    <p class="privacy">${esc(CHECK.notice)}</p>
+
+    <p class="panel-label" style="margin:20px 0 11px">Upload the original documents — ${esc(PROP_TYPE||"property")}</p>
+    <div class="doclist">${docs}</div>
+
+    <p class="panel-label" style="margin:22px 0 11px">Ownership declaration</p>
+    ${qs}
+
+    ${findings?`<p class="panel-label" style="margin:22px 0 11px">What needs attention</p>${findings}`:""}
+    <p class="secnote"><b>How your documents are held.</b> Every file is
+      SHA-256 hashed on arrival, so tampering afterwards is detectable; written
+      with owner-only permissions; and encrypted at rest when a key is
+      configured. The same file submitted against two properties is flagged
+      automatically. Uploaded papers are readable only by staff, never by
+      buyers.</p>
+    <p class="disc">${esc(state.disclaimer||"")}</p>
+  </div>`;
+
+  $("#verify-out").querySelectorAll(".yn button").forEach(b=>{
+    b.onclick=async()=>{ ANSWERS[b.parentNode.dataset.q]=(b.dataset.v==="yes"); await saveDisclosures(); };
+  });
+  CHECK.documents.forEach(d=>{
+    const inp=$("#up-"+CSS.escape(d.code));
+    if(inp) inp.onchange=()=>uploadDoc(d.code, inp);
+  });
+}
+
+async function saveDisclosures(){
+  const r=await fetch(`/api/v1/properties/${PROP_ID}/disclosures`,{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({answers:ANSWERS,documents_held:[]})});
+  await r.json();
+  const cur=await (await fetch(`/api/v1/properties/${PROP_ID}/verification`)).json();
+  renderVerification(cur);
+}
+
+async function uploadDoc(code, input){
+  const f=input.files[0]; input.value=""; if(!f) return;
+  const fd=new FormData(); fd.append("file",f); fd.append("kind","document"); fd.append("doc_code",code);
+  const r=await fetch(`/api/v1/properties/${PROP_ID}/uploads`,{method:"POST",body:fd});
+  const d=await r.json();
+  if(!r.ok){ alert(d.detail||"Upload failed"); return; }
+  const cur=await (await fetch(`/api/v1/properties/${PROP_ID}/verification`)).json();
+  renderVerification(cur);
+  if((d.warnings||[]).length) alert(d.warnings.join("\n\n"));
+}
+
+/* ---------------- title ---------------- */
+const DOCS={
+  "Mortgage found":"ENCUMBRANCE CERTIFICATE Form 15. Survey No: 42/1. A mortgage was created in favour of the bank over the schedule property on 12-03-2019.",
+  "Clean EC":"ENCUMBRANCE CERTIFICATE Form 15. The property bearing Survey No: 42/1 is free from all encumbrance for the period 1994 to 2026.",
+  "B-Khata":"This is a B-Khata property under BBMP limits. Survey No: 88/3, extent 1200 sq ft.",
+  "Litigation":"SALE DEED. Survey No: 17/2. O.S. No 441/2021 is pending before the civil court with a stay order.",
+};
+Object.entries(DOCS).forEach(([k,v])=>{ const b=document.createElement("button");
+  b.className="chip"; b.textContent=k; b.onclick=()=>{ $("#doc").value=v; runDoc(); };
+  $("#doc-chips").appendChild(b); });
+
+async function runDoc(){
+  const btn=$("#doc-go"); btn.disabled=true;
+  try{
+    const r=await fetch("/api/v1/documents/check",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text:$("#doc").value,expected_owner:$("#owner").value||null})});
+    const d=await r.json();
+    const ex=Object.entries(d.extracted||{}).filter(([,v])=>v);
+    $("#doc-out").innerHTML=`<div class="panel">
+      <div class="verdict ${d.verdict}">${d.verdict.replace("_"," ")} · ${esc(d.document_type)}</div>
+      ${d.issues.length?d.issues.map(i=>`<div class="issue ${i.severity}">
+        <code>${esc(i.code)}</code>${esc(i.detail)}</div>`).join("")
+        :`<p class="empty">No detectable problems in this screen.</p>`}
+      ${ex.length?`<p class="meta" style="margin-top:12px">extracted → ${
+        ex.map(([k,v])=>k+"="+esc(v)).join("   ")}</p>`:""}
+      <p class="disc">${esc(d.disclaimer||"")}</p></div>`;
+  }catch(e){
+    $("#doc-out").innerHTML=`<div class="panel"><p class="status err">${esc(e.message)}</p></div>`;
+  }finally{ btn.disabled=false; }
+}
+$("#doc-go").onclick=runDoc;
+
+/* ---------------- playbook (go-to-market) -------- */
+$("#pb-init").onclick = async () => {
+  const city = $("#pb-city").value.trim();
+  const state = $("#pb-state").value.trim();
+  if (!city || !state) { $("#pb-status").textContent = "Please enter city and state"; return; }
+  $("#pb-status").textContent = "Loading…";
+  try {
+    const r = await fetch(`/api/v1/playbook/beachhead?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&property_types=Flat&property_types=Plot`, {method:"POST", headers:{"Authorization": "Bearer "+($("#key").value||"")}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to set beachhead");
+    $("#pb-status").textContent = `Beachhead set: ${city}, ${state}`;
+    renderPlaybookProgress(d);
+  } catch(e) {
+    $("#pb-status").textContent = e.message;
+  }
+};
+
+$("#pb-log").onclick = async () => {
+  const type = $("#pb-type").value;
+  const name = $("#pb-name").value.trim();
+  const phone = $("#pb-phone").value.trim();
+  const city = $("#pb-city").value.trim() || "Bengaluru";
+  if (!name || !phone) { $("#pb-log-status").textContent = "Please enter name and phone"; return; }
+  $("#pb-log-status").textContent = "Logging…";
+  try {
+    const r = await fetch(`/api/v1/interviews?interview_type=${type}&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&city=${encodeURIComponent(city)}`, {method:"POST", headers:{"Authorization": "Bearer "+($("#key").value||"")}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to log");
+    $("#pb-log-status").textContent = `Interview logged: ${name}`;
+    $("#pb-name").value = ""; $("#pb-phone").value = "";
+    fetch("/api/v1/playbook/beachhead").then(r=>r.json()).then(renderPlaybookProgress).catch(()=>{});
+    loadBuildPlan();   // an interview moves Phase 1, so the plan above restates
+  } catch(e) {
+    $("#pb-log-status").textContent = e.message;
+  }
+};
+
+function renderPlaybookProgress(data) {
+  if (!data.validation) { $("#pb-progress").innerHTML = ""; return; }
+  const v = data.validation;
+  $("#pb-progress").innerHTML = `
+    <div class="panel">
+      <p class="panel-label">Validation Checklist</p>
+      <div style="font-size:13px; line-height:2">
+        <p><b>Interviews:</b> ${v.interviews.total}/${v.interviews.target} (${Math.round(v.interviews.progress*100)}%)</p>
+        ${v.next_steps.map(s=>`<p>${s}</p>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+/* The build plan, measured. Phases come from playbook §8; whether each one is
+   done is read off the database, so this panel can and does contradict the
+   person reading it. */
+function loadBuildPlan(){
+  return fetch("/api/v1/playbook/status").then(r=>r.json()).then(d=>{
+    const rungs = d.phases.map(p=>
+      `<div class="rung ${p.done?"done":""}">${p.number}. ${esc(p.name)}</div>`).join("");
+
+    const phases = d.phases.map(p=>`
+      <div class="phase ${p.done?"done":"pending"}">
+        <div class="phase-no">${p.done?"✓":p.number}</div>
+        <div>
+          <p class="phase-name">${esc(p.name)}</p>
+          <p class="phase-what">${esc(p.what)}</p>
+          <p class="phase-ev">${p.done?"":"needs — "}<b>${esc(p.evidence)}</b></p>
+        </div>
+      </div>`).join("");
+
+    const limits = d.limits.map(([title, detail])=>`
+      <div class="limit"><b>${esc(title)}</b><span>${esc(detail)}</span></div>`).join("");
+
+    $("#pb-plan").innerHTML = `
+      <div class="panel">
+        <p class="panel-label">Build plan · playbook §8${
+          d.beachhead?` · ${esc(d.beachhead)}`:""}</p>
+        <div class="ladder">${rungs}</div>
+        ${d.warning?`<div class="callout"><b>Out of order</b>${esc(d.warning)}</div>`:""}
+        ${phases}
+      </div>
+      <div class="panel">
+        <p class="panel-label">Revenue model · playbook §7.6</p>
+        <p style="font-size:13.5px;line-height:1.6;margin:0 0 8px">${esc(d.revenue_model.detail)}</p>
+        <p class="phase-ev"><b>${d.revenue_model.active_agents}</b> agents active</p>
+      </div>
+      <div class="panel">
+        <p class="panel-label">What this is not</p>
+        ${limits}
+      </div>`;
+  }).catch(()=>{ $("#pb-plan").innerHTML=""; });
+}
+
+function loadBeachhead(){
+  return fetch("/api/v1/playbook/beachhead").then(r=>r.json()).then(d=>{
+    if (d.city) {
+      $("#pb-city").value = d.city;
+      $("#pb-state").value = d.state;
+      renderPlaybookProgress(d);
+    }
+  }).catch(()=>{});
+}
+
+/* ---------------- revenue (Premier Agent Model) -------- */
+$("#rev-register").onclick = async () => {
+  const name = $("#rev-name").value.trim();
+  const phone = $("#rev-phone").value.trim();
+  const email = $("#rev-email").value.trim();
+  const company = $("#rev-company").value.trim();
+  const spec = $("#rev-spec").value;
+  const areas = $("#rev-areas").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const fee = parseFloat($("#rev-fee").value) || 500;
+  if (!name || !phone || !email) { $("#rev-status").textContent = "Please enter name, phone, email"; return; }
+  if (!areas.length) { $("#rev-status").textContent = "Add at least one service area — an agent with none can never be sent a lead."; return; }
+  $("#rev-status").textContent = "Registering…";
+  try {
+    const qs = areas.map(a=>`&service_areas=${encodeURIComponent(a)}`).join("");
+    const r = await fetch(`/api/v1/agents/register?name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}&company=${encodeURIComponent(company)}&specialization=${encodeURIComponent(spec)}&lead_fee_inr=${fee}${qs}`, {method:"POST", headers:{"Authorization": "Bearer "+($("#key").value||"")}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to register");
+    $("#rev-status").textContent = `Agent registered: ${name} — covers ${d.service_areas.join(", ")}`;
+    $("#rev-name").value = ""; $("#rev-phone").value = ""; $("#rev-email").value = ""; $("#rev-company").value = ""; $("#rev-areas").value = "";
+    loadRevenueDashboard();
+  } catch(e) {
+    $("#rev-status").textContent = e.message;
+  }
+};
+
+async function loadRevenueDashboard() {
+  const key = ($("#key").value||"").trim();
+  if (!key) {
+    // Staff-only figures. Say so plainly rather than firing an unauthenticated
+    // request and painting a raw 401 across the panel.
+    $("#rev-dashboard").innerHTML = `<div class="panel"><p class="empty">
+      Revenue figures are staff-only — paste your staff key in the Team tab, then reopen this tab.</p></div>`;
+    return;
+  }
+  try {
+    const r = await fetch("/api/v1/revenue/dashboard", {headers:{"Authorization": "Bearer "+key}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to load");
+    $("#rev-dashboard").innerHTML = `
+      <div class="panel">
+        <p class="panel-label">Revenue Dashboard</p>
+        <table><tbody>
+          <tr><td><b>Active agents:</b></td><td>${d.agents.active}</td></tr>
+          <tr><td><b>Leads sent:</b></td><td>${d.leads.sent}</td></tr>
+          <tr><td><b>Conversion rate:</b></td><td>${d.leads.conversion_rate}</td></tr>
+          <tr><td><b>Fees owed (earned):</b></td><td>${rupees(d.revenue_inr.earned)}</td></tr>
+          <tr><td><b>Revenue collected:</b></td><td>${rupees(d.revenue_inr.paid)}</td></tr>
+        </tbody></table>
+      </div>
+    `;
+  } catch(e) {
+    $("#rev-dashboard").innerHTML = `<div class="panel"><p class="status err">${esc(e.message)}</p></div>`;
+  }
+}
+
+/* Loaded when the Revenue tab is opened (see the tab handler), not on page
+   load — it needs the staff key the user types in the Team tab. */
+
+/* ---------------- post-sale (Phase 4) -------- */
+$("#ps-reg-rent").onclick = async () => {
+  const propId = parseInt($("#ps-prop-id").value);
+  const rent = parseFloat($("#ps-rent").value);
+  const furnish = $("#ps-furnish").value.trim();
+  if (!propId || !rent) { $("#ps-rent-status").textContent = "Please enter property ID and rent"; return; }
+  $("#ps-rent-status").textContent = "Registering…";
+  try {
+    const r = await fetch(`/api/v1/rentals/register?property_id=${propId}&monthly_rent_inr=${rent}&furnishing=${encodeURIComponent(furnish)}`, {method:"POST", headers:{"Authorization": "Bearer "+($("#key").value||"")}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to register");
+    $("#ps-rent-status").textContent = `Rental registered for property #${propId}`;
+    $("#ps-prop-id").value = ""; $("#ps-rent").value = "";
+  } catch(e) {
+    $("#ps-rent-status").textContent = e.message;
+  }
+};
+
+$("#ps-reg-farm").onclick = async () => {
+  const propId = parseInt($("#ps-farm-id").value);
+  const soil = $("#ps-soil").value;
+  const region = $("#ps-region").value.trim();
+  const acres = parseFloat($("#ps-acres").value);
+  const irrigation = $("#ps-irrigation").value;
+  if (!propId || !region || !acres) { $("#ps-farm-status").textContent = "Please enter all fields"; return; }
+  $("#ps-farm-status").textContent = "Registering…";
+  try {
+    const r = await fetch(`/api/v1/farmland/register?property_id=${propId}&soil_type=${encodeURIComponent(soil)}&region=${encodeURIComponent(region)}&size_acres=${acres}&irrigation_type=${encodeURIComponent(irrigation)}`, {method:"POST", headers:{"Authorization": "Bearer "+($("#key").value||"")}});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "Failed to register");
+    $("#ps-farm-status").textContent = `Farmland registered for property #${propId}`;
+    $("#ps-farm-id").value = ""; $("#ps-region").value = ""; $("#ps-acres").value = "";
+  } catch(e) {
+    $("#ps-farm-status").textContent = e.message;
+  }
+};
+
+function loadPostSaleSummary(){
+  return fetch("/api/v1/post-sale/summary").then(r=>r.json()).then(d=>{
+    $("#ps-summary").innerHTML = `
+      <div class="panel">
+        <p class="panel-label">Phase 4: Post-Sale Summary</p>
+        <table><tbody>
+          <tr><td><b>Rental listings:</b></td><td>${d.features.rental_management.active_listings}</td></tr>
+          <tr><td><b>Leased properties:</b></td><td>${d.features.rental_management.leased_properties}</td></tr>
+          <tr><td><b>Farmland properties:</b></td><td>${d.features.farmland_guidance.properties_registered}</td></tr>
+          <tr><td><b>Current season:</b></td><td>${d.features.farmland_guidance.current_season}</td></tr>
+        </tbody></table>
+      </div>
+    `;
+  }).catch(()=>{});
+}
+
+/* ---------------- team ---------------- */
+$("#team-go").onclick = async () => {
+  const key=$("#key").value.trim();
+  const hdr = key?{Authorization:"Bearer "+key}:{};
+  $("#team-status").textContent="Loading…"; $("#team-status").classList.remove("err");
+  try{
+    const [lr,vr]=await Promise.all([
+      fetch("/api/v1/leads",{headers:hdr}),
+      fetch("/api/v1/site-visits",{headers:hdr})]);
+    if(lr.status===401||lr.status===403){
+      const e=await lr.json();
+      throw new Error(e.detail||"Staff key required");
+    }
+    const leads=(await lr.json()).leads, visits=(await vr.json()).visits;
+    $("#team-status").textContent="";
+    $("#team-out").innerHTML=`<div class="panel">
+      <p class="panel-label">Leads · ${leads.length}</p>
+      ${leads.length?`<table><thead><tr><th>Phone</th><th>Area</th><th>Budget</th>
+        <th>Intent</th><th>Status</th></tr></thead><tbody>${
+        leads.map(l=>`<tr><td>${esc(l.phone)}</td><td>${esc(l.preferred_location||"—")}</td>
+          <td>${money(l.budget_max)}</td><td>${l.intent_score}</td>
+          <td><span class="pill ${esc(l.status)}">${esc(l.status)}</span></td></tr>`).join("")}
+        </tbody></table>`:`<p class="empty">No leads yet — try the WhatsApp flow.</p>`}
+      </div>
+      <div class="panel"><p class="panel-label">Site visits · ${visits.length}</p>
+      ${visits.length?`<table><thead><tr><th>Lead</th><th>Slot</th><th>Status</th></tr></thead>
+        <tbody>${visits.map(v=>`<tr><td>#${v.lead_id}</td><td>${esc(v.scheduled_for||"—")}</td>
+        <td>${esc(v.status)}</td></tr>`).join("")}</tbody></table>`
+        :`<p class="empty">No site visits booked yet.</p>`}
+      </div>`;
+  }catch(e){
+    $("#team-status").textContent=e.message; $("#team-status").classList.add("err");
+    $("#team-out").innerHTML="";
+  }
+};
+
+/* ---------------- Inky — the agent, pinned to the viewport ---------------- */
+/* Identity is a demo convenience: in production this is the signed-in user.
+   Kept in localStorage so the agent's inbox survives a reload. */
+const INKY_SUBJECT = (()=>{ try{
+  let s = localStorage.getItem("verify_subject");
+  if(!s){ s = "+9198" + Math.floor(10000000 + Math.random()*89999999);
+          localStorage.setItem("verify_subject", s); }
+  return s;
+}catch(e){ return "+919800000000"; } })();
+
+let INKY_OPEN = false;
+
+function inkyMount(){
+  const btn = document.createElement("button");
+  btn.id = "inky";
+  btn.setAttribute("aria-label", "Your property agent");
+  btn.setAttribute("aria-expanded", "false");
+  btn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <g class="head">
+        <path d="M6 12.5a6 6 0 0 1 12 0v2.2H6z"/>
+        <circle cx="9.7" cy="11.4" r=".95" fill="currentColor" stroke="none"/>
+        <circle cx="14.3" cy="11.4" r=".95" fill="currentColor" stroke="none"/>
+      </g>
+      <path class="tent" d="M7 14.7c-.5 1.7-1.6 2.5-2.7 2.9"/>
+      <path class="tent" d="M10 14.7c-.3 2-.2 3.3.4 4.4"/>
+      <path class="tent" d="M14 14.7c.3 2 .2 3.3-.4 4.4"/>
+      <path class="tent" d="M17 14.7c.5 1.7 1.6 2.5 2.7 2.9"/>
+    </svg>
+    <span class="badge-dot" hidden></span>`;
+  btn.onclick = inkyToggle;
+  document.body.appendChild(btn);
+
+  const panel = document.createElement("div");
+  panel.id = "inky-panel"; panel.hidden = true;
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-label", "Your property agent");
+  document.body.appendChild(panel);
+
+  inkyRefresh();
+  // The agent runs in its own process; poll so its findings appear without
+  // the page being reloaded.
+  setInterval(inkyRefresh, 20000);
+}
+
+async function inkyRefresh(){
+  try{
+    const [nres, sres] = await Promise.all([
+      fetch(`/api/v1/notifications?subject=${encodeURIComponent(INKY_SUBJECT)}`),
+      fetch("/api/v1/agent/status")]);
+    const notes = (await nres.json()).notifications || [];
+    const st = await sres.json();
+    const unread = notes.filter(n=>!n.read).length;
+    const urgent = notes.some(n=>!n.read && n.severity==="urgent");
+
+    const dot = document.querySelector("#inky .badge-dot");
+    dot.hidden = unread === 0;
+    dot.textContent = unread > 9 ? "9+" : String(unread);
+    document.querySelector("#inky").classList.toggle("urgent", urgent);
+
+    if(INKY_OPEN) inkyRender(notes, st);
+  }catch(e){ /* the agent being unreachable must not break the page */ }
+}
+
+function inkyToggle(){
+  INKY_OPEN = !INKY_OPEN;
+  const panel = $("#inky-panel");
+  panel.hidden = !INKY_OPEN;
+  $("#inky").setAttribute("aria-expanded", String(INKY_OPEN));
+  if(INKY_OPEN) inkyRefresh();
+}
+
+function inkyRender(notes, st){
+  const watchable = (typeof PROP_ID !== "undefined" && PROP_ID) ? PROP_ID : null;
+  $("#inky-panel").innerHTML = `
+    <header>
+      <div>
+        <h3>Your agent</h3>
+        <p class="sub">${st.running ? "watching · "+st.active_watches+" watches"
+                                    : "loop not running"}</p>
+      </div>
+      <button class="btn-quiet" id="inky-close">Close</button>
+    </header>
+
+    ${st.running ? "" : `<div class="note warning">
+      <div class="nt">The agent process is not up</div>
+      <div class="nb">Watches are saved but nothing is being checked. Start it
+      with <code>python agent.py</code> in the backend directory.</div></div>`}
+
+    ${notes.length ? notes.map(n=>`
+      <div class="note ${esc(n.severity)} ${n.read?"":"unread"}" data-id="${n.id}">
+        <div class="nt">${esc(n.title)}</div>
+        <div class="nb">${esc(n.body)}</div>
+      </div>`).join("")
+      : `<div class="inky-empty">
+           <p class="empty">Nothing yet. Ask me to watch something and I'll keep
+           looking after you close the tab.</p></div>`}
+
+    <div style="padding:13px 15px;border-top:1px solid var(--rule)">
+      <p class="panel-label" style="margin-bottom:9px">Ask me to watch</p>
+      <input type="text" id="inky-brief" placeholder="3BHK in Whitefield under 1.3 crore"
+        style="width:100%;margin-bottom:8px">
+      <div class="row" style="gap:7px;flex-wrap:wrap">
+        <button class="btn" id="inky-watch-brief">Tell me when one appears</button>
+        ${watchable ? `<button class="btn-quiet" id="inky-watch-title">Watch listing #${watchable}'s title</button>` : ""}
+      </div>
+      <p class="meta" style="margin-top:9px">Alerts wait here in the app. To get
+        them on WhatsApp you have to grant permission, and you can withdraw it
+        at any time.</p>
+    </div>`;
+
+  $("#inky-close").onclick = inkyToggle;
+
+  $("#inky-panel").querySelectorAll(".note.unread").forEach(el=>{
+    el.onclick = async ()=>{
+      el.classList.remove("unread");
+      await fetch(`/api/v1/notifications/${el.dataset.id}/read`, {method:"POST"});
+      inkyRefresh();
+    };
+  });
+
+  $("#inky-watch-brief").onclick = async ()=>{
+    const brief = $("#inky-brief").value.trim();
+    if(!brief){ $("#inky-brief").focus(); return; }
+    await inkyCreate("NEW_MATCH", {brief});
+  };
+  const t = $("#inky-watch-title");
+  if(t) t.onclick = ()=> inkyCreate("VERIFICATION_CHANGE", {property_id: watchable});
+}
+
+async function inkyCreate(kind, extra){
+  const q = new URLSearchParams({subject: INKY_SUBJECT, kind, channel: "inapp"});
+  Object.entries(extra).forEach(([k,v])=> q.set(k, v));
+  const r = await fetch(`/api/v1/watches?${q}`, {method:"POST"});
+  const d = await r.json();
+  if(!r.ok){ alert(d.detail || "Could not create that watch."); return; }
+  inkyRefresh();
+}
+
+inkyMount();
+loadOverview();
+runSearch();
+</script>
+</body>
+</html>

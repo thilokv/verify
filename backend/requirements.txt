@@ -1,0 +1,18 @@
+# Core — required in every mode
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0
+pydantic>=2.7
+
+# Production storage (VECTOR_BACKEND=pgvector)
+psycopg2-binary>=2.9 ; extra == "pg"
+pgvector>=0.3 ; extra == "pg"
+
+# Model providers — install only what you use
+openai>=1.40 ; extra == "openai"
+anthropic>=0.40 ; extra == "anthropic"
+voyageai>=0.3 ; extra == "voyage"
+
+# Tests
+pytest>=8.0 ; extra == "dev"
+httpx>=0.27 ; extra == "dev"
