@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from . import cities
 from .models import Property
 
 # Committed infrastructure in Bengaluru, with the uplift each is worth to
@@ -46,6 +47,17 @@ INFRASTRUCTURE = {
 CITY_LATITUDE = 12.97
 
 # What the market pays for, or discounts, beyond the per-square-foot anchor.
+# What the market pays for a shared facility, as a fraction of the base. These
+# are modest on purpose: a clubhouse is priced into a project, not a windfall,
+# and stacking six amenities at 3% each would invent a quarter of the value.
+AMENITY_UPLIFT = {
+    "swimming pool": 0.020, "clubhouse": 0.018, "gym": 0.012,
+    "power backup": 0.012, "covered parking": 0.015, "24x7 security": 0.010,
+    "kids play area": 0.008, "lift": 0.008, "park": 0.006,
+}
+AMENITY_CAP = 0.06        # the whole bundle, never more than this
+
+
 KHATA_ADJUSTMENT = {
     # B-Khata: banks generally decline, so the financed buyer disappears.
     "B": -0.18,
@@ -72,56 +84,97 @@ def _daylight_hours(latitude: float, day_of_year: int) -> float:
     return 2.0 * math.degrees(math.acos(cos_omega)) / 15.0
 
 
+def _solar_position(latitude: float, day: int, hour: float):
+    """Altitude and azimuth of the sun, in degrees. Azimuth is from true north."""
+    lat = math.radians(latitude)
+    dec = math.radians(_declination(day))
+    H = math.radians(15.0 * (hour - 12.0))          # hour angle
+
+    sin_alt = math.sin(lat) * math.sin(dec) + math.cos(lat) * math.cos(dec) * math.cos(H)
+    sin_alt = max(-1.0, min(1.0, sin_alt))
+    alt = math.asin(sin_alt)
+    if alt <= 0:
+        return -1.0, 0.0                            # below the horizon
+
+    cos_az = ((math.sin(dec) - math.sin(alt) * math.sin(lat))
+              / (math.cos(alt) * math.cos(lat) or 1e-9))
+    cos_az = max(-1.0, min(1.0, cos_az))
+    az = math.degrees(math.acos(cos_az))            # 0 = north
+    if H > 0:                                       # afternoon: sun in the west
+        az = 360.0 - az
+    return math.degrees(alt), az
+
+
+# Facade normals, degrees from true north.
+_FACING_NORMAL = {"north": 0.0, "east": 90.0, "south": 180.0, "west": 270.0}
+
+_FACING_NOTE = {
+    "east": ("Morning sun, cool by afternoon. The most sought-after orientation "
+             "in this market and it carries a resale premium."),
+    "north": ("Least direct sun and the coolest interior. Good for heat, weaker "
+              "for drying and for natural light in winter."),
+    "west": ("Harsh afternoon sun on the facade. Rooms hold heat into the "
+             "evening and cooling costs run higher."),
+    "south": ("The most total sun across the year. Bright, and warm through the "
+              "middle of the day."),
+}
+
+
 def sunlight_profile(facing: Optional[str],
                      latitude: float = CITY_LATITUDE) -> Dict[str, Any]:
-    """Annual direct-sun exposure for a facade, computed over 365 days.
+    """Annual hours of direct sun ON THIS FACADE, integrated over the year.
 
-    This is real astronomy rather than a lookup: declination is integrated
-    across the year for the given latitude. What it is NOT is a shading study —
-    it cannot see the tower next door. It answers "how much sun does a facade
-    at this orientation receive in Bengaluru", which is the question that
-    actually drives heat load and, here, resale preference.
+    Real astronomy rather than a lookup, and latitude genuinely matters here:
+    at 13°N the sun crosses overhead twice a year and spends part of it to the
+    NORTH, so a north facade in Chennai catches sun a north facade in Delhi
+    never does. An earlier version multiplied mean day length by a fixed
+    per-facing fraction — but mean day length over a full year is ~12 hours at
+    every latitude, so that cancelled latitude out and reported the same number
+    for Delhi and Bengaluru.
+
+    What it is NOT is a shading study: it cannot see the tower next door. It
+    answers how much sun a facade at this orientation receives at this latitude.
     """
-    days = range(1, 366)
-    daylight = [_daylight_hours(latitude, d) for d in days]
-    mean_daylight = sum(daylight) / len(daylight)
-
     face = (facing or "").strip().lower()
+    normal = _FACING_NORMAL.get(face)
 
-    # Fraction of the day's sun a facade receives, and when it receives it.
-    # North of the tropic the sun tracks south; at 13°N it crosses overhead
-    # twice a year, so a north facade still catches summer morning and evening
-    # sun — which is why north is cool but not dark here.
-    profiles = {
-        "east": (0.42, "morning",
-                 "Morning sun, cool by afternoon. The most sought-after "
-                 "orientation in Bengaluru and it carries a resale premium."),
-        "north": (0.30, "indirect",
-                  "Least direct sun and the coolest interior. Good for heat, "
-                  "weaker for drying and for natural light in winter."),
-        "west": (0.44, "afternoon",
-                 "Harsh afternoon sun on the facade. Rooms hold heat into the "
-                 "evening and cooling costs run higher."),
-        "south": (0.48, "midday",
-                  "The most total sun across the year. Bright, and warm "
-                  "through the middle of the day."),
-    }
-    fraction, peak, note = profiles.get(face, (0.38, "mixed",
-        "Orientation not stated, so this is the average across facings."))
+    step = 1.0 / 6.0                                # ten-minute steps
+    daylight_by_day, facade_hours = [], 0.0
 
-    annual_hours = mean_daylight * 365 * fraction
+    for day in range(1, 366):
+        lit = 0.0
+        hour = 0.0
+        while hour < 24.0:
+            alt, az = _solar_position(latitude, day, hour)
+            if alt > 0:
+                lit += step
+                if normal is None:
+                    facade_hours += step * 0.38     # orientation not stated
+                else:
+                    diff = abs((az - normal + 180.0) % 360.0 - 180.0)
+                    if diff < 90.0:
+                        facade_hours += step
+            hour += step
+        daylight_by_day.append(lit)
+
+    mean_daylight = sum(daylight_by_day) / len(daylight_by_day)
 
     return {
         "facing": facing or "Not stated",
-        "annual_direct_sun_hours": round(annual_hours),
+        "latitude": latitude,
+        "annual_direct_sun_hours": round(facade_hours),
         "mean_daylight_hours": round(mean_daylight, 2),
-        "peak_exposure": peak,
-        "summer_daylight_hours": round(max(daylight), 2),
-        "winter_daylight_hours": round(min(daylight), 2),
-        "note": note,
-        "method": ("Solar declination integrated over 365 days at "
-                   f"{latitude}°N. Facade orientation only — this does not "
-                   "model shading from neighbouring buildings."),
+        "peak_exposure": {"east": "morning", "west": "afternoon",
+                          "south": "midday", "north": "indirect"}.get(face, "mixed"),
+        "summer_daylight_hours": round(max(daylight_by_day), 2),
+        "winter_daylight_hours": round(min(daylight_by_day), 2),
+        "note": _FACING_NOTE.get(
+            face, "Orientation not stated, so this is the average across facings."),
+        "method": (f"Solar altitude and azimuth computed at ten-minute steps "
+                   f"across 365 days at {latitude}°N, counting only the hours "
+                   f"the sun is actually in front of this facade. Orientation "
+                   f"only — it does not model shading from neighbouring "
+                   f"buildings."),
     }
 
 
@@ -175,7 +228,7 @@ def value(db: Session, property_id: int) -> Dict[str, Any]:
             "listed_price_inr": prop.price_inr,
             "comparables": [],
             "adjustments": [],
-            "sunlight": sunlight_profile(prop.facing),
+            "sunlight": sunlight_profile(prop.facing, cities.get(prop.city)["latitude"]),
             "is_estimate": True,
         }
 
@@ -216,8 +269,30 @@ def value(db: Session, property_id: int) -> Dict[str, Any]:
                     "builder's promise, not a fact."),
         })
 
+    # ---- amenities ------------------------------------------------------
+    # Stored on every listing and, until now, never priced. Capped as a bundle
+    # so a long amenity list cannot manufacture value.
+    listed = [str(a).strip().lower() for a in (prop.amenities or [])]
+    matched = [(a, AMENITY_UPLIFT[a]) for a in AMENITY_UPLIFT if a in listed]
+    if matched:
+        raw = sum(u for _, u in matched)
+        uplift = min(raw, AMENITY_CAP)
+        delta = running * uplift
+        running += delta
+        adjustments.append({
+            "factor": f"Amenities ({len(matched)})",
+            "percent": round(uplift * 100, 1),
+            "amount_inr": round(delta),
+            "why": ("" .join([", ".join(a for a, _ in matched).capitalize(), ". "])
+                    + ("Capped as a bundle — a long amenity list does not "
+                       "compound into real value."
+                       if raw > AMENITY_CAP else
+                       "Priced modestly: these are shared facilities, not extra "
+                       "square feet.")),
+        })
+
     # ---- infrastructure -------------------------------------------------
-    infra = INFRASTRUCTURE.get(prop.location_name or "", [])
+    infra = cities.get(prop.city)["infrastructure"].get(prop.location_name or "", [])
     growth_pct = 0.0
     for name, uplift in infra:
         delta = running * uplift

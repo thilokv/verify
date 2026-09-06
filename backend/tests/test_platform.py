@@ -1440,7 +1440,7 @@ def test_valuation_of_a_missing_property_raises(db):
 
 
 def test_sunlight_is_computed_across_the_whole_year():
-    east = val.sunlight_profile("East")
+    east = val.sunlight_profile("East", 12.97)
     assert east["annual_direct_sun_hours"] > 0
     # Bengaluru at 13°N: day length varies, but never wildly.
     assert 11.0 < east["summer_daylight_hours"] < 13.5
@@ -1448,10 +1448,32 @@ def test_sunlight_is_computed_across_the_whole_year():
     assert east["summer_daylight_hours"] > east["winter_daylight_hours"]
 
 
-def test_sunlight_orders_the_facings_the_way_bengaluru_experiences_them():
-    hours = {f: val.sunlight_profile(f)["annual_direct_sun_hours"]
-             for f in ("North", "East", "West", "South")}
-    assert hours["North"] < hours["East"] < hours["West"] < hours["South"]
+def test_east_and_west_receive_the_same_sun_because_the_sky_is_symmetric():
+    """The earlier model asserted west > east, which is physically false — the
+    sun's path is symmetric about noon, so the two facades get the same hours.
+    What differs is comfort: west takes it as afternoon heat. That belongs in
+    the note, not in the hour count."""
+    h = {f: val.sunlight_profile(f)["annual_direct_sun_hours"]
+         for f in ("North", "East", "West", "South")}
+    assert abs(h["East"] - h["West"]) / h["East"] < 0.02
+    assert h["North"] < h["East"]
+    assert h["South"] > h["East"]
+    assert "afternoon" in val.sunlight_profile("West")["note"].lower()
+
+
+def test_latitude_actually_changes_the_answer():
+    """Regression: annual hours were mean-day-length × a fixed per-facing
+    fraction. Mean day length over a year is ~12h at EVERY latitude, so that
+    cancelled latitude out and reported identical sun for Delhi and Chennai."""
+    chennai_n = val.sunlight_profile("North", 13.08)["annual_direct_sun_hours"]
+    delhi_n = val.sunlight_profile("North", 28.61)["annual_direct_sun_hours"]
+    chennai_s = val.sunlight_profile("South", 13.08)["annual_direct_sun_hours"]
+    delhi_s = val.sunlight_profile("South", 28.61)["annual_direct_sun_hours"]
+
+    # Further north: the sun sits south for more of the year.
+    assert delhi_s > chennai_s * 1.2
+    # And a north facade near the tropic catches sun Delhi's never does.
+    assert chennai_n > delhi_n * 1.5
 
 
 def test_sunlight_handles_an_unstated_facing():
@@ -2267,3 +2289,95 @@ def test_compare_and_conveyance_endpoints_are_public():
                       params={"property_id": 1}).status_code == 200
     # one id is a user error, not a server error
     assert client.get("/api/v1/compare", params=[("ids", 1)]).status_code == 422
+
+
+# ------------------------------------------------- multi-city (state law)
+
+from app import cities as cities_mod  # noqa: E402
+
+
+def test_duty_is_state_law_not_a_national_number():
+    """Chennai is close to double Ahmedabad on the same purchase."""
+    price = 10_000_000
+    chennai = afford.acquisition_cost(price, "Ready to move", city="Chennai")
+    gujarat = afford.acquisition_cost(price, "Ready to move", city="Ahmedabad")
+    assert chennai["extras_inr"] > gujarat["extras_inr"] * 1.7
+    assert chennai["state"] == "Tamil Nadu"
+    assert gujarat["state"] == "Gujarat"
+
+
+def test_maharashtra_registration_fee_is_capped():
+    """1% uncapped on ₹5 Cr would be ₹5 L; Maharashtra caps it at ₹30,000."""
+    out = afford.acquisition_cost(50_000_000, "Ready to move", city="Mumbai")
+    reg = next(l for l in out["lines"] if l["item"].startswith("Registration"))
+    assert reg["amount_inr"] == 30_000
+
+
+def test_the_womens_concession_is_applied_where_a_state_offers_it():
+    plain = afford.acquisition_cost(10_000_000, "Ready to move", city="Delhi NCR")
+    woman = afford.acquisition_cost(10_000_000, "Ready to move",
+                                    city="Delhi NCR", woman_purchaser=True)
+    assert woman["extras_inr"] < plain["extras_inr"]
+    # Karnataka offers none, so the flag must change nothing there.
+    a = afford.acquisition_cost(10_000_000, "Ready to move", city="Bengaluru")
+    b = afford.acquisition_cost(10_000_000, "Ready to move",
+                                city="Bengaluru", woman_purchaser=True)
+    assert a["extras_inr"] == b["extras_inr"]
+
+
+def test_an_unknown_city_falls_back_rather_than_guessing():
+    out = afford.acquisition_cost(10_000_000, "Ready to move", city="Atlantis")
+    assert out["state"] == "Karnataka"
+    assert cities_mod.is_known("Atlantis") is False
+    assert cities_mod.is_known("mumbai") is True     # case-insensitive
+
+
+def test_the_title_document_is_named_per_state():
+    """'Khata' is Karnataka. Asking for one in Mumbai marks you as a tourist."""
+    assert "Khata" in cities_mod.get("Bengaluru")["title_document"]
+    assert "Property Card" in cities_mod.get("Mumbai")["title_document"]
+    assert "Patta" in cities_mod.get("Chennai")["title_document"]
+    assert "khata" not in cities_mod.get("Mumbai")["title_document"].lower()
+
+
+def test_the_conveyance_transfer_step_follows_the_state(agent_db):
+    out = conv_mod.timeline(agent_db, price_inr=10_000_000)
+    assert "khata" in out["most_missed"].lower()      # default city
+    stage = next(s for s in out["stages"] if s["key"] == "khata")
+    assert "BBMP" in stage["stage"]
+
+
+def test_amenities_are_priced_but_capped(agent_db):
+    """Stored on every listing and, until now, never used. Capped as a bundle
+    so a long amenity list cannot manufacture value."""
+    prop = (agent_db.query(Property)
+            .filter(Property.listing_type != "RENT",
+                    Property.is_verified.is_(True),
+                    Property.price_inr.isnot(None)).first())
+    before = prop.amenities
+    try:
+        prop.amenities = ["Swimming pool", "Clubhouse", "Gym", "Power backup",
+                          "Covered parking", "24x7 security", "Kids play area"]
+        agent_db.commit()
+        out = val.value(agent_db, prop.id)
+        amen = [a for a in out["adjustments"] if a["factor"].startswith("Amenities")]
+        assert amen, "amenities should be priced"
+        assert amen[0]["percent"] <= val.AMENITY_CAP * 100 + 0.01
+    finally:
+        prop.amenities = before
+        agent_db.commit()
+
+
+def test_cities_endpoint_ranks_by_what_a_buyer_actually_pays():
+    d = client.get("/api/v1/cities").json()
+    totals = [c["total_percent"] for c in d["cities"]]
+    assert totals == sorted(totals, reverse=True)
+    assert d["cities"][0]["city"] == "Chennai"
+
+
+def test_affordability_accepts_a_city_override():
+    a = client.get("/api/v1/properties/1/affordability",
+                   params={"monthly_income_inr": 200000, "city": "Bengaluru"}).json()
+    b = client.get("/api/v1/properties/1/affordability",
+                   params={"monthly_income_inr": 200000, "city": "Chennai"}).json()
+    assert b["acquisition"]["extras_inr"] > a["acquisition"]["extras_inr"]

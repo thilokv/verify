@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
+from . import cities
 from .models import Property, RentalListing
 
 RATES_AS_OF = "2026-04-01"
@@ -93,22 +94,32 @@ def _banded(value: float, bands) -> float:
     return bands[-1][1]
 
 
-def stamp_duty_rate(price_inr: float) -> float:
-    return _banded(price_inr, STAMP_DUTY_BANDS)
+def stamp_duty_rate(price_inr: float, city: Optional[str] = None) -> float:
+    return _banded(price_inr, cities.get(city)["stamp_duty_bands"])
 
 
 def acquisition_cost(price_inr: float, possession: Optional[str] = None,
-                     urban: bool = True) -> Dict[str, Any]:
-    """Everything payable on top of the agreed price."""
+                     urban: bool = True, city: Optional[str] = None,
+                     woman_purchaser: bool = False) -> Dict[str, Any]:
+    """Everything payable on top of the agreed price, for THIS city.
+
+    Duty, registration and the concessions are state law, not national. A
+    Chennai purchase carries close to double a Gujarat one on the same price.
+    """
     if price_inr is None or price_inr <= 0:
         raise ValueError("price_inr must be a positive amount")
 
-    duty_rate = stamp_duty_rate(price_inr)
+    c = cities.get(city)
+    duty_rate = _banded(price_inr, c["stamp_duty_bands"])
+    if woman_purchaser and c["women_concession"]:
+        duty_rate = max(0.0, duty_rate - c["women_concession"])
+
     stamp_duty = price_inr * duty_rate
-    cess = stamp_duty * CESS_ON_STAMP_DUTY
-    surcharge = stamp_duty * (SURCHARGE_ON_STAMP_DUTY_URBAN if urban
-                              else SURCHARGE_ON_STAMP_DUTY_RURAL)
-    registration = price_inr * REGISTRATION_RATE
+    cess = stamp_duty * c["cess_on_duty"]
+    surcharge = stamp_duty * c["surcharge_on_duty"]
+    registration = price_inr * c["registration_rate"]
+    if c["registration_cap_inr"]:
+        registration = min(registration, c["registration_cap_inr"])
 
     under_construction = (possession or "").strip().lower().startswith("under")
     if under_construction:
@@ -128,16 +139,21 @@ def acquisition_cost(price_inr: float, possession: Optional[str] = None,
         {"item": f"Stamp duty ({duty_rate * 100:.0f}%)",
          "amount_inr": round(stamp_duty), "display": _rupees(stamp_duty),
          "note": "Payable to the state at registration. Not negotiable."},
-        {"item": "Cess (10% of stamp duty)", "amount_inr": round(cess),
-         "display": _rupees(cess),
-         "note": "Charged on the duty, not on the property value."},
-        {"item": f"Surcharge ({'urban' if urban else 'rural'})",
-         "amount_inr": round(surcharge), "display": _rupees(surcharge),
-         "note": "Also charged on the duty."},
-        {"item": "Registration (1%)", "amount_inr": round(registration),
-         "display": _rupees(registration),
-         "note": "Sub-registrar's fee to record the transfer in your name."},
     ]
+    if cess:
+        lines.append({"item": f"Cess ({c['cess_on_duty']*100:.0f}% of stamp duty)",
+                      "amount_inr": round(cess), "display": _rupees(cess),
+                      "note": "Charged on the duty, not on the property value."})
+    if surcharge:
+        lines.append({"item": "Surcharge / transfer duty",
+                      "amount_inr": round(surcharge), "display": _rupees(surcharge),
+                      "note": "Also charged on the duty."})
+    lines.append({
+        "item": f"Registration ({c['registration_rate']*100:.2f}%)".replace(".00%", "%"),
+        "amount_inr": round(registration), "display": _rupees(registration),
+        "note": ("Sub-registrar's fee to record the transfer in your name."
+                 + (f" Capped at {_rupees(c['registration_cap_inr'])} in "
+                    f"{c['state']}." if c["registration_cap_inr"] else ""))})
     if gst:
         lines.append({
             "item": f"GST ({gst_rate * 100:.0f}%)", "amount_inr": round(gst),
@@ -165,11 +181,16 @@ def acquisition_cost(price_inr: float, possession: Optional[str] = None,
         "headline": (
             f"{_rupees(price_inr)} listed, {_rupees(total)} to actually own it "
             f"— {_rupees(extras)} more than the price you were quoted."),
+        "city": c is not None and (city or cities.DEFAULT_CITY),
+        "state": c["state"],
+        "title_document": c["title_document"],
+        "title_authority": c["title_authority"],
+        "women_concession_applies": bool(c["women_concession"]),
         "rates_as_of": RATES_AS_OF,
         "disclaimer": (
-            "Karnataka rates as configured on " + RATES_AS_OF + ". Stamp duty "
-            "changes in state budgets and GST in Council meetings — confirm "
-            "current rates with your advocate before you budget on them."),
+            f"{c['state']} rates as configured on {RATES_AS_OF}. Stamp duty "
+            f"changes in state budgets and GST in Council meetings — confirm "
+            f"current rates with your advocate before you budget on them."),
     }
 
 
@@ -284,7 +305,9 @@ def affordability(session: Session, property_id: int,
                   monthly_income_inr: Optional[float] = None,
                   existing_emi_inr: float = 0.0,
                   annual_rate: float = DEFAULT_RATE_ANNUAL,
-                  years: int = DEFAULT_TENURE_YEARS) -> Dict[str, Any]:
+                  years: int = DEFAULT_TENURE_YEARS,
+                  city: Optional[str] = None,
+                  woman_purchaser: bool = False) -> Dict[str, Any]:
     """The full picture for one property: true cost, and whether it is fundable."""
     prop = session.get(Property, property_id)
     if prop is None:
@@ -294,7 +317,9 @@ def affordability(session: Session, property_id: int,
             "This listing has no asking price, so there is nothing to cost. "
             "A letting is priced monthly — see the rental view instead.")
 
-    cost = acquisition_cost(prop.price_inr, prop.possession)
+    cost = acquisition_cost(prop.price_inr, prop.possession,
+                            city=city or prop.city,
+                            woman_purchaser=woman_purchaser)
     out: Dict[str, Any] = {
         "property_id": prop.id,
         "title": prop.title,

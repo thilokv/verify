@@ -528,6 +528,7 @@ td span{display:block;color:var(--faint);font-size:11.5px;margin-top:3px;line-he
         quiet hours 21:00–08:00 IST · STOP honoured before anything else reads the message</p>
     </div>
 
+    <div id="ov-cities"></div>
     <div id="ov-plan"></div>
 
     <div class="panel">
@@ -786,6 +787,9 @@ td span{display:block;color:var(--faint);font-size:11.5px;margin-top:3px;line-he
           <span>Property</span>
           <select id="money-prop"></select>
         </label>
+        <label class="field" style="min-width:140px">
+          <span>City</span><select id="money-city"></select>
+        </label>
         <label class="field" style="min-width:150px">
           <span>Your monthly income</span>
           <input type="number" id="money-income" value="200000" min="0" step="10000">
@@ -999,7 +1003,7 @@ document.querySelectorAll(".mode-btn").forEach(t => t.onclick = () => {
   if (t.dataset.pane === "revenue")  loadRevenueDashboard();
   if (t.dataset.pane === "playbook") { loadBuildPlan(); loadBeachhead(); }
   if (t.dataset.pane === "postsale") loadPostSaleSummary();
-  if (t.dataset.pane === "money") { moneyLoadProperties(); stagingLoad(); }
+  if (t.dataset.pane === "money") { moneyLoadProperties(); stagingLoad(); loadCities(); }
   if (t.dataset.pane === "overview") loadOverview();
   if (t.dataset.pane === "compare") cmpLoad();
   if (t.dataset.pane === "steps") stepsLoad();
@@ -1296,6 +1300,38 @@ async function stepsRun(){
 }
 $("#steps-go").onclick = stepsRun;
 
+/* ---------------- cities · duty is state law, not a national number ------- */
+async function loadCities(){
+  try{
+    const d = await (await fetch("/api/v1/cities")).json();
+    const sel = $("#money-city");
+    if(sel && !sel.options.length){
+      sel.innerHTML = d.cities.map(c=>
+        `<option value="${esc(c.city)}"${c.city==="Bengaluru"?" selected":""}>${esc(c.city)}</option>`).join("");
+    }
+    const host = $("#ov-cities");
+    if(host && !host.children.length){
+      host.innerHTML = `<div class="panel">
+        <p class="panel-label">What it costs to buy, by city</p>
+        <p style="font-size:13.5px;line-height:1.62;color:var(--soft);margin:0 0 14px">${esc(d.note)}</p>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>City</th><th>Duty</th><th>Registration</th><th>Total</th>
+            <th>The document you must demand</th></tr></thead>
+          <tbody>${d.cities.map(c=>`<tr>
+            <td><b>${esc(c.city)}</b><span>${esc(c.state)} · ${c.latitude}°N</span></td>
+            <td>${c.stamp_duty_percent}%</td>
+            <td>${c.registration_percent}%</td>
+            <td><b style="color:${c.total_percent>=8?"var(--bad)":c.total_percent>=7?"var(--warn)":"var(--ok)"}">${c.total_percent}%</b></td>
+            <td>${esc(c.title_document)}<span>${esc(c.title_authority)}${
+              c.women_concession_percent?` · ${c.women_concession_percent}% off for a woman purchaser`:""}</span></td>
+          </tr>`).join("")}</tbody>
+        </table></div>
+        <p class="disc" style="margin-top:12px">Configured rates as of ${esc(d.rates_as_of)}. Stamp duty moves in state budgets — confirm with your advocate.</p>
+      </div>`;
+    }
+  }catch(e){ /* the deck must still read if this fails */ }
+}
+
 /* ---------------- overview (the deck's opening slide) ---------------- */
 async function loadOverview(){
   try{
@@ -1338,6 +1374,7 @@ async function moneyLoadProperties(){
 async function moneyRun(){
   const id=$("#money-prop").value;
   if(!id){ $("#money-status").textContent="Pick a property."; return; }
+  const city=$("#money-city")?.value||"";
   const income=$("#money-income").value||0, emi=$("#money-emi").value||0,
         rate=$("#money-rate").value||8.6, years=$("#money-years").value||20;
   $("#money-status").textContent="Working…"; $("#money-status").classList.remove("err");
@@ -1345,7 +1382,8 @@ async function moneyRun(){
   try{
     const [aff,val,yld]=await Promise.all([
       fetch(`/api/v1/properties/${id}/affordability?monthly_income_inr=${income}`
-            +`&existing_emi_inr=${emi}&annual_rate_percent=${rate}&tenure_years=${years}`).then(r=>r.json()),
+            +`&existing_emi_inr=${emi}&annual_rate_percent=${rate}&tenure_years=${years}`
+            +(city?`&city=${encodeURIComponent(city)}`:"")).then(r=>r.json()),
       fetch(`/api/v1/properties/${id}/valuation`).then(r=>r.json()),
       fetch(`/api/v1/properties/${id}/yield`).then(r=>r.json()),
     ]);
@@ -2355,6 +2393,7 @@ async function inkyCreate(kind, extra){
 
 inkyMount();
 loadOverview();
+loadCities();
 runSearch();
 </script>
 </body>

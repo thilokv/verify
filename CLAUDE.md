@@ -25,7 +25,13 @@ backend/           FastAPI + SQLAlchemy — services, verification, agents
   served by the API. It stays: it works with no toolchain and is the fastest
   way to exercise the API on a machine with no Node.
 
-## Market: India
+## Market: India — eight cities, not one
+
+`cities.py` holds what changes across a state line: stamp duty bands,
+registration (capped in Maharashtra), women's concessions, latitude for the
+sunlight model, the infrastructure map, and — the one people get wrong — the
+name of the title document. "Khata" is Karnataka; Mumbai wants a property card,
+Chennai a patta. Never hardcode a rate or a document name into pricing code.
 
 This is not a generic listing platform and must not drift into one.
 

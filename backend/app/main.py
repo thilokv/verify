@@ -24,6 +24,7 @@ from . import rental_agent as ultron
 from . import buyer_safety
 from . import tenant_safety
 from . import affordability as afford
+from . import cities as cities_mod
 from . import compare as cmp_
 from . import conveyance as conv
 from . import valuation
@@ -942,12 +943,19 @@ def property_affordability(property_id: int,
                            existing_emi_inr: float = Query(0.0, ge=0),
                            annual_rate_percent: float = Query(8.6, gt=0, le=30),
                            tenure_years: int = Query(20, ge=1, le=35),
+                           city: Optional[str] = Query(None, max_length=40),
+                           woman_purchaser: bool = Query(False),
                            db: Session = Depends(get_db)):
-    """True cost of acquisition, and whether a bank will fund this."""
+    """True cost of acquisition, and whether a bank will fund this.
+
+    `city` prices the same property under another state's duty regime — the
+    spread is close to double between the cheapest and dearest, so it is worth
+    being able to ask.
+    """
     try:
         return afford.affordability(db, property_id, monthly_income_inr,
                                     existing_emi_inr, annual_rate_percent / 100,
-                                    tenure_years)
+                                    tenure_years, city, woman_purchaser)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -1006,10 +1014,18 @@ def conveyance_timeline(property_id: Optional[int] = Query(None),
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@app.get("/api/v1/cities")
+def list_cities():
+    """What a buyer pays, and what document they must demand, city by city."""
+    return cities_mod.summary()
+
+
 @app.get("/api/v1/sunlight")
-def sunlight(facing: str = Query("", max_length=20)):
-    """Annual direct-sun exposure for a facade orientation."""
-    return valuation.sunlight_profile(facing or None)
+def sunlight(facing: str = Query("", max_length=20),
+             city: str = Query("", max_length=40)):
+    """Annual direct-sun exposure for a facade, at this city's latitude."""
+    return valuation.sunlight_profile(facing or None,
+                                      cities_mod.get(city or None)["latitude"])
 
 
 @app.post("/api/v1/renovation/estimate")

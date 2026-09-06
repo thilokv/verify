@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy.orm import Session
 
 from . import affordability as afford
+from . import cities
 from .models import Property
 
 
@@ -127,7 +128,10 @@ def timeline(session: Session, property_id: Optional[int] = None,
     if not price_inr or price_inr <= 0:
         raise ValueError("Give a property, or a price to work the sequence against.")
 
-    cost = afford.acquisition_cost(price_inr, prop.possession if prop else None)
+    city_name = prop.city if prop else None
+    c = cities.get(city_name)
+    cost = afford.acquisition_cost(price_inr, prop.possession if prop else None,
+                                   city=city_name)
     duty = next(l["amount_inr"] for l in cost["lines"]
                 if l["item"].startswith("Stamp duty"))
     cess = next(l["amount_inr"] for l in cost["lines"] if l["item"].startswith("Cess"))
@@ -151,6 +155,15 @@ def timeline(session: Session, property_id: Optional[int] = None,
 
     stages = []
     for i, (key, name, when, what, docs, wrong) in enumerate(STAGES, 1):
+        if key == "khata":
+            # Every state has this step; only Karnataka calls it a khata.
+            name = f"Record transfer ({c['title_authority']})"
+            what = c["transfer_step"]
+            docs = [d.replace("Khata transfer application with fee",
+                              f"{c['title_authority']} transfer application with fee")
+                    for d in docs]
+        if key == "diligence":
+            docs = [c["title_document"] if "Khata certificate" in d else d for d in docs]
         amount, why = money.get(key, (None, None))
         stages.append({
             "n": i,
@@ -181,12 +194,15 @@ def timeline(session: Session, property_id: Optional[int] = None,
         "price_display": _rupees(price_inr),
         "total_outlay_display": cost["total_display"],
         "stages": stages,
+        "city": city_name or cities.DEFAULT_CITY,
+        "state": c["state"],
+        "title_document": c["title_document"],
+        "title_authority": c["title_authority"],
+        "title_note": c["title_note"],
         "rule": ("Money follows the check, never the other way round. The "
                  "advocate's opinion and the encumbrance certificate come before "
                  "the token — once a token has moved you have a document to argue "
                  "with instead of a decision to make."),
-        "most_missed": ("Registration is not the end. The khata is still in the "
-                        "seller's name until you apply separately to the BBMP, and "
-                        "skipping that is the most common mistake in this city."),
+        "most_missed": ("Registration is not the end. " + c["transfer_step"]),
         "rates_as_of": afford.RATES_AS_OF,
     }
