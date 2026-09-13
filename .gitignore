@@ -7,3 +7,4 @@ realestate.db
 uploads/
 .env
 .DS_Store
+.staff-key

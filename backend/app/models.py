@@ -173,6 +173,7 @@ class Property(Base):
             "facing": self.facing,
             "rera_id": self.rera_id,
             "khata": self.khata,
+            "listing_type": self.listing_type or "SALE",
             "is_verified": bool(self.is_verified),
             "verification_note": self.verification_note,
             "risk_status": self.risk_status,

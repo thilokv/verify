@@ -24,7 +24,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app import documents as docs  # noqa: E402
 from app.db import SessionLocal, init_db  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Property  # noqa: E402
+from app.models import AuditEvent, Property  # noqa: E402
 from app.search import parse_constraints, search  # noqa: E402
 from app.whatsapp_agent import handle_message  # noqa: E402
 
@@ -236,7 +236,15 @@ def test_new_listing_enters_unverified_and_is_invisible():
         "user_prompt": "Test 3BHK Whitefield", "limit": 10}).json()
     assert all(m["id"] != created["id"] for m in found["matches"])
 
-    client.post(f"/api/v1/properties/{created['id']}/verify")
+    # A bare listing has nothing on file, so the plain sign-off is refused —
+    # that guard is what keeps an unexamined title away from buyers. The
+    # advocate's override, with a reason, is the honest route through.
+    refused = client.post(f"/api/v1/properties/{created['id']}/verify")
+    assert refused.status_code == 409
+
+    client.post(f"/api/v1/properties/{created['id']}/verify",
+                params={"override": "true",
+                        "reason": "Test fixture — originals examined."})
     found2 = client.post("/api/v1/search", json={
         "user_prompt": "Test 3BHK Whitefield", "limit": 10}).json()
     assert any(m["id"] == created["id"] for m in found2["matches"])
@@ -2381,3 +2389,81 @@ def test_affordability_accepts_a_city_override():
     b = client.get("/api/v1/properties/1/affordability",
                    params={"monthly_income_inr": 200000, "city": "Chennai"}).json()
     assert b["acquisition"]["extras_inr"] > a["acquisition"]["extras_inr"]
+
+
+# ------------------------------------- the verify button is now guarded
+
+def _fresh_unverified(db, title="Guard test flat"):
+    p = Property(title=title, property_type="Flat", config="2BHK",
+                 location_name="Sarjapur", city="Bengaluru", price_inr=7_800_000,
+                 area_sqft=1100.0, possession="Ready to move", khata="A-Khata",
+                 is_verified=False, listing_type="SALE", amenities=[],
+                 disclosures={})
+    db.add(p); db.commit(); db.refresh(p)
+    return p
+
+
+def test_verify_refuses_a_listing_with_nothing_on_file(agent_db, auth_on):
+    """Regression: found by walking the seller flow as a customer. A listing
+    went live with nine questions unanswered and none of nine documents held,
+    because the button flipped the flag unconditionally."""
+    p = _fresh_unverified(agent_db)
+    try:
+        r = client.post(f"/api/v1/properties/{p.id}/verify", headers=STAFF)
+        assert r.status_code == 409
+        body = r.json()["detail"]
+        assert "Refusing to verify" in body["message"]
+        assert body["documents_missing"]            # nothing was uploaded
+        assert body["unanswered"]                   # nothing was answered
+        agent_db.refresh(p)
+        assert p.is_verified is False               # and it stayed hidden
+    finally:
+        agent_db.delete(p); agent_db.commit()
+
+
+def test_verify_override_needs_a_written_reason(agent_db, auth_on):
+    p = _fresh_unverified(agent_db, "Override no reason")
+    try:
+        r = client.post(f"/api/v1/properties/{p.id}/verify",
+                        params={"override": "true"}, headers=STAFF)
+        assert r.status_code == 422
+        assert "reason" in r.json()["detail"].lower()
+        agent_db.refresh(p)
+        assert p.is_verified is False
+    finally:
+        agent_db.delete(p); agent_db.commit()
+
+
+def test_verify_override_with_reason_is_recorded_in_the_audit_trail(agent_db, auth_on):
+    """The advocate is the final authority and may have seen originals in
+    person — so an override is allowed, but it must leave a trace that says
+    exactly what was still open when they signed."""
+    p = _fresh_unverified(agent_db, "Override with reason")
+    try:
+        r = client.post(f"/api/v1/properties/{p.id}/verify",
+                        params={"override": "true",
+                                "reason": "Originals examined in chambers 12 Sep."},
+                        headers=STAFF)
+        assert r.status_code == 200
+        assert r.json()["is_verified"] is True
+        assert r.json()["signed_off_over_open_findings"] is True
+
+        ev = (agent_db.query(AuditEvent)
+              .filter_by(property_id=p.id, action="VERIFY")
+              .order_by(AuditEvent.id.desc()).first())
+        assert ev is not None
+        assert ev.detail["override"] is True
+        assert "chambers" in ev.detail["reason"]
+        assert ev.detail["open_high_at_signoff"] > 0
+        assert ev.detail["documents_missing"]
+    finally:
+        agent_db.query(AuditEvent).filter_by(property_id=p.id).delete()
+        agent_db.delete(p); agent_db.commit()
+
+
+def test_verify_still_needs_a_staff_key(agent_db, auth_on):
+    p = _fresh_unverified(agent_db, "No key")
+    try:
+        assert client.post(f"/api/v1/properties/{p.id}/verify").status_code in (401, 403)
+    finally:
+        agent_db.delete(p); agent_db.commit()

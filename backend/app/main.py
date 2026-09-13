@@ -179,16 +179,82 @@ def create_property(body: PropertyIn, db: Session = Depends(get_db),
 
 @app.post("/api/v1/properties/{property_id}/verify")
 def verify_property(property_id: int, note: Optional[str] = None,
+                    override: bool = Query(False),
+                    reason: Optional[str] = Query(None, max_length=500),
                     db: Session = Depends(get_db),
                     _staff: str = Depends(require_staff)):
-    """Mark a listing verified — the advocate sign-off step. Staff only."""
+    """The advocate sign-off — the one click that puts a listing in front of
+    buyers. Staff only.
+
+    This used to flip `is_verified` unconditionally. Walking the seller flow
+    as a customer showed a listing going live with nine questions unanswered
+    and none of nine documents held, because nothing stood between the button
+    and the flag. That is the exact hole a careless or compromised staff
+    member walks through.
+
+    The advocate IS the final authority — they may have examined originals in
+    person that were never uploaded — so this is not a hard block. But
+    verifying over open high-severity findings now needs `override=true` and
+    a written `reason`, and both are written to the append-only audit trail
+    so "who verified this, and why, with what still open" is answerable.
+    """
     prop = db.get(Property, property_id)
     if not prop:
         raise HTTPException(404, "No such property")
+
+    documents = db.execute(
+        select(Asset).where(Asset.property_id == property_id,
+                            Asset.kind == "document")).scalars().all()
+    ev = evidence.assess_documents(
+        verification.required_documents(prop.property_type),
+        [{"code": a.doc_code or "", "label": a.label, "sha256": a.sha256,
+          "bytes": a.bytes, "media_type": a.media_type,
+          "text": a.extracted_text, "pdf": a.pdf_signals} for a in documents],
+        duplicate_hits={})
+    decl = verification.assess(
+        prop.property_type, prop.disclosures or {}, ev["submitted_codes"])
+
+    open_high = ev["high_count"] + decl["high_count"]
+    open_items = ([f.get("code") for f in ev["findings"] if f.get("severity") == "high"]
+                  + [f.get("code") for f in decl["findings"] if f.get("severity") == "high"])
+
+    if open_high and not override:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    f"Refusing to verify: {open_high} high-severity finding(s) are "
+                    f"still open, {len(ev['missing_codes'])} required document(s) "
+                    f"are not on file and {len(decl['unanswered'])} disclosure "
+                    f"question(s) are unanswered. If the advocate has examined "
+                    f"originals in person, resubmit with override=true and a "
+                    f"reason — it will be recorded against your key."),
+                "open_findings": open_items[:12],
+                "documents_missing": ev["missing_codes"],
+                "unanswered": decl["unanswered"],
+            })
+    if open_high and override and not (reason or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="override=true requires a written reason. It is recorded.")
+
     prop.is_verified = True
     prop.verification_note = note or "Advocate title opinion on file."
+    db.add(AuditEvent(
+        property_id=property_id, action="VERIFY", actor="staff",
+        detail={
+            "override": bool(open_high and override),
+            "reason": (reason or "").strip() or None,
+            "open_high_at_signoff": open_high,
+            "open_findings": open_items[:12],
+            "documents_missing": ev["missing_codes"],
+            "unanswered_count": len(decl["unanswered"]),
+            "note": prop.verification_note,
+        }))
     db.commit()
-    return prop.to_public()
+    out = prop.to_public()
+    out["signed_off_over_open_findings"] = bool(open_high)
+    return out
 
 
 @app.post("/api/v1/reindex")
