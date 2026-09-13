@@ -1462,15 +1462,23 @@ $("#money-go").onclick=moneyRun;
 
 /* ------------- staging + renovation costing (parity with the dashboard) --- */
 let ST_SCOPES=[], ST_PICKED=new Set(["deep_clean","paint"]);
-async function stagingLoad(){
+async function stagingLoad(attempt=0){
   if(ST_SCOPES.length) return;
   try{
-    const d=await (await fetch("/api/v1/renovation/scopes")).json();
+    const r=await fetch("/api/v1/renovation/scopes");
+    if(!r.ok) throw new Error(r.status);
+    const d=await r.json();
     ST_SCOPES=d.scopes||[];
     $("#st-room").innerHTML=(d.rooms||[]).map(r=>`<option value="${r}">${esc(r.replace(/_/g," "))}</option>`).join("");
     $("#st-style").innerHTML=(d.styles||[]).map(x=>`<option value="${x}">${esc(x)}</option>`).join("");
-    stagingChips();
-  }catch(e){ $("#st-status").textContent="Could not load renovation options."; }
+    stagingChips(); $("#st-status").textContent="";
+  }catch(e){
+    // A tab switch mid-fetch, or a tunnel hiccup, must not leave a permanent
+    // error on screen. Try twice more before saying so, then offer a retry.
+    if(attempt<2){ setTimeout(()=>stagingLoad(attempt+1), 900*(attempt+1)); return; }
+    $("#st-status").innerHTML='Could not load renovation options. <a href="#" id="st-retry">Try again</a>';
+    $("#st-retry").onclick=(ev)=>{ ev.preventDefault(); $("#st-status").textContent="Loading…"; stagingLoad(0); };
+  }
 }
 function stagingChips(){
   $("#st-scopes").innerHTML=ST_SCOPES.map(s=>
